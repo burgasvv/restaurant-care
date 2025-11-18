@@ -1,0 +1,46 @@
+
+
+
+### Identity Requests
+
+
+
+###
+POST /api/v1/identities/create
+Host: localhost:9000
+Accept: application/json
+Content-Type: application/json
+
+{
+    "authority": "ADMIN",
+    "username": "burgasvv",
+    "password": "burgasvv",
+    "email": "burgasvv@gmail.com",
+    "isActive": true
+}
+
+###
+GET /api/v1/identities
+Host: localhost:9000
+Accept: application/json
+
+###
+GET /api/v1/identities/by-id?identityId=033c7dcf-b8a2-498f-8a6b-eafde06ba57d
+Host: localhost:9000
+Accept: application/json
+
+###
+PUT /api/v1/identities/update
+Host: localhost:9000
+Accept: application/json
+Content-Type: application/json
+
+{
+    "id": "ffac79b7-28e4-42ad-bb5b-e11e0d978acf",
+    "username": "burgasvv"
+}
+
+###
+DELETE /api/v1/identities/delete?identityId=ffac79b7-28e4-42ad-bb5b-e11e0d978acf
+Host: localhost:9000
+Accept: application/json
