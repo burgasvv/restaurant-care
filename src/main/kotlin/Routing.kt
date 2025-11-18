@@ -7,9 +7,9 @@ import io.ktor.server.response.*
 
 fun Application.configureRouting() {
 
-//    install(StatusPages) {
-//        exception<Throwable> { call, cause ->
-//            call.respond(HttpStatusCode.BadRequest, cause.localizedMessage)
-//        }
-//    }
+    install(StatusPages) {
+        exception<Throwable> { call, cause ->
+            call.respond(HttpStatusCode.BadRequest, cause.localizedMessage)
+        }
+    }
 }

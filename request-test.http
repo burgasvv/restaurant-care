@@ -44,3 +44,9 @@ Content-Type: application/json
 DELETE /api/v1/identities/delete?identityId=ffac79b7-28e4-42ad-bb5b-e11e0d978acf
 Host: localhost:9000
 Accept: application/json
+
+###
+DELETE /api/v1/identities/remove-files?identityId=033c7dcf-b8a2-498f-8a6b-eafde06ba57d&
+    fileId=1c6582e3-23e0-4f7a-8024-4e2d732ce51c&fileId=ced29ce7-3b86-4d9c-8e65-416bd82d6ead
+Host: localhost:9000
+Accept: application/json

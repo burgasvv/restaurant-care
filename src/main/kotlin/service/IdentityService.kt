@@ -14,7 +14,9 @@ import org.burgas.Identity
 import org.burgas.IdentityFile
 import org.burgas.UUIDSerialization
 import org.jetbrains.exposed.v1.core.ResultRow
+import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.statements.InsertStatement
 import org.jetbrains.exposed.v1.core.statements.UpdateStatement
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
@@ -22,6 +24,7 @@ import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
+import org.mindrot.jbcrypt.BCrypt
 import java.sql.Connection
 import java.time.LocalDateTime
 import java.util.*
@@ -79,7 +82,9 @@ fun ResultRow.toIdentityFullResponse(files: List<FileResponse>): IdentityFullRes
 fun InsertStatement<Number>.toIdentity(identityRequest: IdentityRequest) {
     this[Identity.authority] = identityRequest.authority ?: throw IllegalArgumentException("Authority is null")
     this[Identity.username] = identityRequest.username ?: throw IllegalArgumentException("Username is null")
-    this[Identity.password] = identityRequest.password ?: throw IllegalArgumentException("Password is null")
+    this[Identity.password] = BCrypt.hashpw(
+        identityRequest.password ?: throw IllegalArgumentException("Password is null"), BCrypt.gensalt()
+    )
     this[Identity.email] = identityRequest.email ?: throw IllegalArgumentException("Email is null")
     this[Identity.isActive] = identityRequest.isActive ?: throw IllegalArgumentException("IsActive is null")
     this[Identity.createdAt] = LocalDateTime.now()
@@ -161,6 +166,13 @@ class IdentityService {
             }
         }
     }
+
+    suspend fun removeFiles(identityId: UUID, fileIds: List<UUID>) = withContext(Dispatchers.Default) {
+        transaction(transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
+            IdentityFile.deleteWhere { (IdentityFile.identityId eq identityId) and (IdentityFile.fileId inList fileIds) }
+            File.deleteWhere { File.id inList fileIds }
+        }
+    }
 }
 
 fun Application.configureIdentityRouter() {
@@ -215,6 +227,16 @@ fun Application.configureIdentityRouter() {
                 val multiPartData = call.receiveMultipart()
                 identityService.addFiles(identityId, multiPartData)
                 call.respond(HttpStatusCode.Created)
+            }
+
+            delete("/identities/remove-files") {
+                val identityId = UUID.fromString(
+                    call.parameters["identityId"] ?: throw IllegalArgumentException("Identity id is null")
+                )
+                val fileIds = call.parameters.getAll("fileId")?.map { UUID.fromString(it) }
+                    ?: throw IllegalArgumentException("File id is null")
+                identityService.removeFiles(identityId, fileIds)
+                call.respond(HttpStatusCode.OK)
             }
         }
     }

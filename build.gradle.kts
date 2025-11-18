@@ -3,6 +3,7 @@ val exposedVersion: String = "1.0.0-rc-3"
 val kotlinVersion: String = "2.2.20"
 val logbackVersion: String = "1.5.21"
 val postgresVersion: String = "42.7.8"
+val jbcryptVersion: String = "0.4"
 
 plugins {
     kotlin("jvm") version "2.2.20"
@@ -33,6 +34,7 @@ dependencies {
     implementation("ch.qos.logback:logback-classic:$logbackVersion")
     implementation("io.ktor:ktor-server-config-yaml")
     implementation("org.postgresql:postgresql:$postgresVersion")
+    implementation("org.mindrot:jbcrypt:$jbcryptVersion")
     testImplementation("io.ktor:ktor-server-test-host")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlinVersion")
 }
