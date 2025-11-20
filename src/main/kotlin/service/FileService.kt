@@ -3,6 +3,8 @@ package org.burgas.service
 import io.ktor.http.*
 import io.ktor.http.content.*
 import io.ktor.server.application.*
+import io.ktor.server.auth.authenticate
+import io.ktor.server.auth.authentication
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -10,8 +12,8 @@ import io.ktor.utils.io.jvm.javaio.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
-import org.burgas.File
-import org.burgas.UUIDSerialization
+import org.burgas.plugin.File
+import org.burgas.plugin.UUIDSerialization
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
@@ -92,26 +94,29 @@ fun Application.configureFileRouter() {
 
         route("/api/v1") {
 
-            get("/files/by-id") {
-                val fileId = UUID.fromString(call.parameters["fileId"] ?: throw IllegalArgumentException("File id not found"))
-                val file = fileService.findById(fileId)
-                call.respondBytes(
-                    file[File.data],
-                    ContentType.parse("${file[File.contentType]}/${file[File.name].split(".")[1]}"),
-                    HttpStatusCode.OK
-                )
-            }
+            authenticate("basic-auth-all") {
 
-            post("/files/upload") {
-                fileService.upload(call.receiveMultipart())
-                call.respond(HttpStatusCode.OK)
-            }
+                get("/files/by-id") {
+                    val fileId = UUID.fromString(call.parameters["fileId"] ?: throw IllegalArgumentException("File id not found"))
+                    val file = fileService.findById(fileId)
+                    call.respondBytes(
+                        file[File.data],
+                        ContentType.parse("${file[File.contentType]}/${file[File.name].split(".")[1]}"),
+                        HttpStatusCode.OK
+                    )
+                }
 
-            delete("/files/remove") {
-                val fileIds = call.parameters.getAll("fileId")
-                    ?.map { UUID.fromString(it) } ?: throw IllegalArgumentException("File ids not found")
-                fileService.remove(fileIds)
-                call.respond(HttpStatusCode.OK)
+                post("/files/upload") {
+                    fileService.upload(call.receiveMultipart())
+                    call.respond(HttpStatusCode.OK)
+                }
+
+                delete("/files/remove") {
+                    val fileIds = call.parameters.getAll("fileId")
+                        ?.map { UUID.fromString(it) } ?: throw IllegalArgumentException("File ids not found")
+                    fileService.remove(fileIds)
+                    call.respond(HttpStatusCode.OK)
+                }
             }
         }
     }

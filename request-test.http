@@ -1,4 +1,9 @@
 
+###
+GET /api/v1/security/csrf-token
+Host: localhost:9000
+Accept: text/plain
+
 
 
 ### Identity Requests
@@ -20,28 +25,64 @@ Content-Type: application/json
 }
 
 ###
+POST /api/v1/identities/create
+Host: localhost:9000
+Accept: application/json
+Content-Type: application/json
+Origin: http://localhost:9000
+X-Csrf-Token: bff8fb3d-12ac-4ec2-af45-2d8ba2e718a1
+
+{
+    "authority": "USER",
+    "username": "zagor",
+    "password": "zagor",
+    "email": "zagor@gmail.com",
+    "isActive": true
+}
+
+###
 GET /api/v1/identities
 Host: localhost:9000
 Accept: application/json
+Authorization: Basic burgasvv@gmail.com burgasvv
 
 ###
-GET /api/v1/identities/by-id?identityId=033c7dcf-b8a2-498f-8a6b-eafde06ba57d
+GET /api/v1/identities/by-id?identityId=5d755809-d1df-4506-887c-90bb0425b612
 Host: localhost:9000
 Accept: application/json
+Authorization: Basic burgasvv@gmail.com burgasvv
 
 ###
 PUT /api/v1/identities/update
 Host: localhost:9000
 Accept: application/json
 Content-Type: application/json
+Authorization: Basic burgasvv@gmail.com burgasvv
+Origin: http://localhost:9000
+X-Csrf-Token: 0301feb0-df34-42ec-a5b4-d66e1cc00185
 
 {
-    "id": "ffac79b7-28e4-42ad-bb5b-e11e0d978acf",
+    "id": "5d755809-d1df-4506-887c-90bb0425b612",
     "username": "burgasvv"
 }
 
 ###
+PUT /api/v1/identities/change-password?identityId=5d755809-d1df-4506-887c-90bb0425b612&newPassword=burgasvv
+Host: localhost:9000
+Accept: application/json
+
+###
 DELETE /api/v1/identities/delete?identityId=ffac79b7-28e4-42ad-bb5b-e11e0d978acf
+Host: localhost:9000
+Accept: application/json
+
+###
+PUT /api/v1/identities/deactivate?identityId=5d755809-d1df-4506-887c-90bb0425b612
+Host: localhost:9000
+Accept: application/json
+
+###
+PUT /api/v1/identities/activate?identityId=5d755809-d1df-4506-887c-90bb0425b612
 Host: localhost:9000
 Accept: application/json
 

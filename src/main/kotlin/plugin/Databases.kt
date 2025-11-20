@@ -1,4 +1,4 @@
-package org.burgas
+package org.burgas.plugin
 
 import io.ktor.server.application.*
 import org.burgas.service.Authority

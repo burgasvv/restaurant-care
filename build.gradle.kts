@@ -35,6 +35,10 @@ dependencies {
     implementation("io.ktor:ktor-server-config-yaml")
     implementation("org.postgresql:postgresql:$postgresVersion")
     implementation("org.mindrot:jbcrypt:$jbcryptVersion")
+    implementation("io.ktor:ktor-server-auth:3.3.2")
+    implementation("io.ktor:ktor-server-cors:3.3.2")
+    implementation("io.ktor:ktor-server-csrf:3.3.2")
+    implementation("io.ktor:ktor-server-sessions:3.3.2")
     testImplementation("io.ktor:ktor-server-test-host")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlinVersion")
 }

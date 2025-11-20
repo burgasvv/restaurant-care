@@ -3,16 +3,18 @@ package org.burgas.service
 import io.ktor.http.*
 import io.ktor.http.content.*
 import io.ktor.server.application.*
+import io.ktor.server.auth.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import io.ktor.util.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
-import org.burgas.File
-import org.burgas.Identity
-import org.burgas.IdentityFile
-import org.burgas.UUIDSerialization
+import org.burgas.plugin.File
+import org.burgas.plugin.Identity
+import org.burgas.plugin.IdentityFile
+import org.burgas.plugin.UUIDSerialization
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
@@ -22,6 +24,7 @@ import org.jetbrains.exposed.v1.core.statements.UpdateStatement
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.select
+import org.jetbrains.exposed.v1.jdbc.transactions.experimental.newSuspendedTransaction
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
 import org.mindrot.jbcrypt.BCrypt
@@ -153,6 +156,45 @@ class IdentityService {
         }
     }
 
+    suspend fun changePassword(identityId: UUID, newPassword: String) = withContext(Dispatchers.Default) {
+        transaction(transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
+            val identity = Identity.select(Identity.fields).where { Identity.id eq identityId }
+                .singleOrNull() ?: throw IllegalArgumentException("Identity not null")
+            if (BCrypt.checkpw(newPassword, identity[Identity.password])) {
+                throw IllegalArgumentException("Passwords match")
+            }
+            Identity.update({ Identity.id eq identity[Identity.id] }) { updateStatement ->
+                updateStatement[Identity.password] = BCrypt.hashpw(newPassword, BCrypt.gensalt())
+            }
+        }
+    }
+
+    suspend fun activate(identityId: UUID) = withContext(Dispatchers.Default) {
+        transaction(transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
+            val identity = Identity.select(Identity.fields).where { Identity.id eq identityId }
+                .singleOrNull() ?: throw IllegalArgumentException("Identity not found")
+            if (identity[Identity.isActive]) {
+                throw IllegalArgumentException("Identity is already active")
+            }
+            Identity.update({ Identity.id eq identityId }) { updateStatement ->
+                updateStatement[Identity.isActive] = true
+            }
+        }
+    }
+
+    suspend fun deactivate(identityId: UUID) = withContext(Dispatchers.Default) {
+        transaction(transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
+            val identity = Identity.select(Identity.fields).where { Identity.id eq identityId }
+                .singleOrNull() ?: throw IllegalArgumentException("Identity not found")
+            if (!identity[Identity.isActive]) {
+                throw IllegalArgumentException("Identity is already deactivated")
+            }
+            Identity.update({ Identity.id eq identityId }) { updateStatement ->
+                updateStatement[Identity.isActive] = false
+            }
+        }
+    }
+
     suspend fun addFiles(identityId: UUID, multiPartData: MultiPartData) = withContext(Dispatchers.Default) {
         val fileIds = fileService.upload(multiPartData)
         transaction(transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
@@ -181,6 +223,53 @@ fun Application.configureIdentityRouter() {
 
     routing {
 
+        @Suppress("DEPRECATION")
+        intercept(ApplicationCallPipeline.Call) {
+            if (
+                call.request.path().equals("/api/v1/identities/by-id", false) ||
+                call.request.path().equals("/api/v1/identities/delete", false) ||
+                call.request.path().equals("/api/v1/identities/change-password", false) ||
+                call.request.path().equals("/api/v1/identities/add-files", false) ||
+                call.request.path().equals("/api/v1/identities/remove-files", false)
+            ) {
+                newSuspendedTransaction {
+                    val principal = call.principal<UserPasswordCredential>()
+                        ?: throw IllegalArgumentException("Identity not authenticated")
+                    val identity = Identity.select(Identity.id).where { Identity.email eq principal.name }
+                        .singleOrNull() ?: throw IllegalArgumentException("Identity credential not found")
+                    val identityId = UUID.fromString(
+                        call.parameters["identityId"] ?: throw IllegalArgumentException("Identity id parameter not found")
+                    )
+                    if (identity[Identity.id] == identityId) {
+                        proceed()
+
+                    } else {
+                        throw IllegalArgumentException("Identity not authorized")
+                    }
+                }
+
+            } else if (call.request.path().equals("/api/v1/identities/update", false)) {
+                newSuspendedTransaction {
+                    val principal = call.principal<UserPasswordCredential>()
+                        ?: throw IllegalArgumentException("Identity not authenticated")
+                    val identity = Identity.select(Identity.id).where { Identity.email eq principal.name }
+                        .singleOrNull() ?: throw IllegalArgumentException("Identity credential not found")
+                    val identityRequest = call.receive(IdentityRequest::class)
+                    val identityId = identityRequest.id ?: throw IllegalArgumentException("identity request id is null")
+                    if (identity[Identity.id] == identityId) {
+                        call.attributes[AttributeKey<IdentityRequest>("identityRequest")] = identityRequest
+                        proceed()
+
+                    } else {
+                        throw IllegalArgumentException("Identity not authorized")
+                    }
+                }
+
+            } else {
+                proceed()
+            }
+        }
+
         route("/api/v1") {
 
             post("/identities/create") {
@@ -189,54 +278,86 @@ fun Application.configureIdentityRouter() {
                 call.respond(HttpStatusCode.Created)
             }
 
-            get("/identities") {
-                call.respond(HttpStatusCode.OK, identityService.findAll())
-            }
+            authenticate("basic-auth-admin") {
 
-            get("/identities/by-id") {
-                val identityId = UUID.fromString(
-                    call.parameters["identityId"] ?: throw IllegalArgumentException("Identity id is null")
-                )
-                call.respond(HttpStatusCode.OK, identityService.findById(identityId))
-            }
+                get("/identities") {
+                    call.respond(HttpStatusCode.OK, identityService.findAll())
+                }
 
-            put("/identities/update") {
-                val identityRequest = call.receive(IdentityRequest::class)
-                if (identityService.update(identityRequest)) {
+                put("/identities/activate") {
+                    val identityId = UUID.fromString(
+                        call.parameters["identityId"] ?: throw IllegalArgumentException("Identity id is null")
+                    )
+                    identityService.activate(identityId)
                     call.respond(HttpStatusCode.OK)
-                } else {
-                    call.respond(HttpStatusCode.NotFound)
+                }
+
+                put("/identities/deactivate") {
+                    val identityId = UUID.fromString(
+                        call.parameters["identityId"] ?: throw IllegalArgumentException("Identity id is null")
+                    )
+                    identityService.deactivate(identityId)
+                    call.respond(HttpStatusCode.OK)
                 }
             }
 
-            delete("/identities/delete") {
-                val identityId = UUID.fromString(
-                    call.parameters["identityId"] ?: throw IllegalArgumentException("Identity id is null")
-                )
-                if (identityService.delete(identityId)) {
-                    call.respond(HttpStatusCode.OK)
-                } else {
-                    call.respond(HttpStatusCode.NotFound)
+            authenticate("basic-auth-all") {
+
+                get("/identities/by-id") {
+                    val identityId = UUID.fromString(
+                        call.parameters["identityId"] ?: throw IllegalArgumentException("Identity id is null")
+                    )
+                    call.respond(HttpStatusCode.OK, identityService.findById(identityId))
                 }
-            }
 
-            post("/identities/add-files") {
-                val identityId = UUID.fromString(
-                    call.parameters["identityId"] ?: throw IllegalArgumentException("Identity id is null")
-                )
-                val multiPartData = call.receiveMultipart()
-                identityService.addFiles(identityId, multiPartData)
-                call.respond(HttpStatusCode.Created)
-            }
+                put("/identities/update") {
+                    val identityRequest = call.attributes[AttributeKey<IdentityRequest>("identityRequest")]
+                    if (identityService.update(identityRequest)) {
+                        call.respond(HttpStatusCode.OK)
+                    } else {
+                        call.respond(HttpStatusCode.NotFound)
+                    }
+                }
 
-            delete("/identities/remove-files") {
-                val identityId = UUID.fromString(
-                    call.parameters["identityId"] ?: throw IllegalArgumentException("Identity id is null")
-                )
-                val fileIds = call.parameters.getAll("fileId")?.map { UUID.fromString(it) }
-                    ?: throw IllegalArgumentException("File id is null")
-                identityService.removeFiles(identityId, fileIds)
-                call.respond(HttpStatusCode.OK)
+                delete("/identities/delete") {
+                    val identityId = UUID.fromString(
+                        call.parameters["identityId"] ?: throw IllegalArgumentException("Identity id is null")
+                    )
+                    if (identityService.delete(identityId)) {
+                        call.respond(HttpStatusCode.OK)
+                    } else {
+                        call.respond(HttpStatusCode.NotFound)
+                    }
+                }
+
+                put("/identities/change-password") {
+                    val identityId = UUID.fromString(
+                        call.parameters["identityId"] ?: throw IllegalArgumentException("Identity id is null")
+                    )
+                    val newPassword =
+                        call.parameters["newPassword"] ?: throw IllegalArgumentException("New password is null")
+                    identityService.changePassword(identityId, newPassword)
+                    call.respond(HttpStatusCode.OK)
+                }
+
+                post("/identities/add-files") {
+                    val identityId = UUID.fromString(
+                        call.parameters["identityId"] ?: throw IllegalArgumentException("Identity id is null")
+                    )
+                    val multiPartData = call.receiveMultipart()
+                    identityService.addFiles(identityId, multiPartData)
+                    call.respond(HttpStatusCode.Created)
+                }
+
+                delete("/identities/remove-files") {
+                    val identityId = UUID.fromString(
+                        call.parameters["identityId"] ?: throw IllegalArgumentException("Identity id is null")
+                    )
+                    val fileIds = call.parameters.getAll("fileId")?.map { UUID.fromString(it) }
+                        ?: throw IllegalArgumentException("File id is null")
+                    identityService.removeFiles(identityId, fileIds)
+                    call.respond(HttpStatusCode.OK)
+                }
             }
         }
     }
