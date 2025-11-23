@@ -2,6 +2,7 @@ package org.burgas.service
 
 import io.ktor.http.*
 import io.ktor.server.application.*
+import io.ktor.server.auth.authenticate
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -134,12 +135,6 @@ fun Application.configureRestaurantRouter() {
 
         route("/api/v1") {
 
-            post("/restaurants/create") {
-                val restaurantRequest = call.receive(RestaurantRequest::class)
-                restaurantService.create(restaurantRequest)
-                call.respond(HttpStatusCode.Created)
-            }
-
             get("/restaurants") {
                 call.respond(HttpStatusCode.OK, restaurantService.findAll())
             }
@@ -151,23 +146,32 @@ fun Application.configureRestaurantRouter() {
                 call.respond(HttpStatusCode.OK, restaurantService.findById(restaurantId))
             }
 
-            put("/restaurant/update") {
-                val restaurantRequest = call.receive(RestaurantRequest::class)
-                if (restaurantService.update(restaurantRequest)) {
-                    call.respond(HttpStatusCode.OK)
-                } else {
-                    call.respond(HttpStatusCode.NotFound)
-                }
-            }
+            authenticate("basic-auth-all") {
 
-            delete("/restaurants/delete") {
-                val restaurantId = UUID.fromString(
-                    call.parameters["restaurantId"] ?: throw IllegalArgumentException("Restaurant  id is null")
-                )
-                if (restaurantService.delete(restaurantId)) {
-                    call.respond(HttpStatusCode.OK)
-                } else {
-                    call.respond(HttpStatusCode.NotFound)
+                post("/restaurants/create") {
+                    val restaurantRequest = call.receive(RestaurantRequest::class)
+                    restaurantService.create(restaurantRequest)
+                    call.respond(HttpStatusCode.Created)
+                }
+
+                put("/restaurant/update") {
+                    val restaurantRequest = call.receive(RestaurantRequest::class)
+                    if (restaurantService.update(restaurantRequest)) {
+                        call.respond(HttpStatusCode.OK)
+                    } else {
+                        call.respond(HttpStatusCode.NotFound)
+                    }
+                }
+
+                delete("/restaurants/delete") {
+                    val restaurantId = UUID.fromString(
+                        call.parameters["restaurantId"] ?: throw IllegalArgumentException("Restaurant  id is null")
+                    )
+                    if (restaurantService.delete(restaurantId)) {
+                        call.respond(HttpStatusCode.OK)
+                    } else {
+                        call.respond(HttpStatusCode.NotFound)
+                    }
                 }
             }
         }

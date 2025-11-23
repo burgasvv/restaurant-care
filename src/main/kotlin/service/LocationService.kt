@@ -2,6 +2,7 @@ package org.burgas.service
 
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.*
+import io.ktor.server.auth.authenticate
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.routing.*
@@ -162,12 +163,6 @@ fun Application.configureLocationRouter() {
 
         route("/api/v1") {
 
-            post("/locations/create") {
-                val locationRequest = call.receive(LocationRequest::class)
-                locationService.create(locationRequest)
-                call.respond(HttpStatusCode.Created)
-            }
-
             get("/locations") {
                 call.respond(HttpStatusCode.OK, locationService.findAll())
             }
@@ -182,32 +177,41 @@ fun Application.configureLocationRouter() {
                 call.respond(HttpStatusCode.OK, locationService.findById(restaurantId, addressId))
             }
 
-            put("/locations/update") {
-                val restaurantId = UUID.fromString(
-                    call.parameters["restaurantId"] ?: throw IllegalArgumentException("Restaurant id is null")
-                )
-                val addressId = UUID.fromString(
-                    call.parameters["addressId"] ?: throw IllegalArgumentException("Address id is null")
-                )
-                val locationRequest = call.receive(LocationRequest::class)
-                if (locationService.update(locationRequest, restaurantId, addressId)) {
-                    call.respond(HttpStatusCode.OK)
-                } else {
-                    call.respond(HttpStatusCode.NotFound)
-                }
-            }
+            authenticate("basic-auth-all") {
 
-            delete("/locations/delete") {
-                val restaurantId = UUID.fromString(
-                    call.parameters["restaurantId"] ?: throw IllegalArgumentException("Restaurant id is null")
-                )
-                val addressId = UUID.fromString(
-                    call.parameters["addressId"] ?: throw IllegalArgumentException("Address id is null")
-                )
-                if (locationService.delete(restaurantId, addressId)) {
-                    call.respond(HttpStatusCode.OK)
-                } else {
-                    call.respond(HttpStatusCode.NotFound)
+                post("/locations/create") {
+                    val locationRequest = call.receive(LocationRequest::class)
+                    locationService.create(locationRequest)
+                    call.respond(HttpStatusCode.Created)
+                }
+
+                put("/locations/update") {
+                    val restaurantId = UUID.fromString(
+                        call.parameters["restaurantId"] ?: throw IllegalArgumentException("Restaurant id is null")
+                    )
+                    val addressId = UUID.fromString(
+                        call.parameters["addressId"] ?: throw IllegalArgumentException("Address id is null")
+                    )
+                    val locationRequest = call.receive(LocationRequest::class)
+                    if (locationService.update(locationRequest, restaurantId, addressId)) {
+                        call.respond(HttpStatusCode.OK)
+                    } else {
+                        call.respond(HttpStatusCode.NotFound)
+                    }
+                }
+
+                delete("/locations/delete") {
+                    val restaurantId = UUID.fromString(
+                        call.parameters["restaurantId"] ?: throw IllegalArgumentException("Restaurant id is null")
+                    )
+                    val addressId = UUID.fromString(
+                        call.parameters["addressId"] ?: throw IllegalArgumentException("Address id is null")
+                    )
+                    if (locationService.delete(restaurantId, addressId)) {
+                        call.respond(HttpStatusCode.OK)
+                    } else {
+                        call.respond(HttpStatusCode.NotFound)
+                    }
                 }
             }
         }

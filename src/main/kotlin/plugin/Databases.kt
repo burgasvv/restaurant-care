@@ -106,6 +106,15 @@ object Employee : Table("employee") {
         get() = PrimaryKey(id)
 }
 
+object DirectorServant : Table("director_servant") {
+    val directorId = uuid("director_id")
+        .references(Employee.id, ReferenceOption.CASCADE, ReferenceOption.CASCADE)
+    val servantId = uuid("servant_id")
+        .references(Employee.id, ReferenceOption.CASCADE, ReferenceOption.CASCADE)
+    override val primaryKey: PrimaryKey
+        get() = PrimaryKey(arrayOf(directorId, servantId))
+}
+
 fun Application.configureDatabases() {
     val database = Database.connect(
         driver = environment.config.property("ktor.postgres.driver").getString(),
@@ -115,6 +124,6 @@ fun Application.configureDatabases() {
     )
 
     transaction(db = database) {
-        SchemaUtils.create(File, Identity, IdentityFile, Address, Restaurant, Location, Employee)
+        SchemaUtils.create(File, Identity, IdentityFile, Address, Restaurant, Location, Employee, DirectorServant)
     }
 }

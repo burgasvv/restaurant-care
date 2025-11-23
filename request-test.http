@@ -41,6 +41,22 @@ X-Csrf-Token: bff8fb3d-12ac-4ec2-af45-2d8ba2e718a1
 }
 
 ###
+POST /api/v1/identities/create
+Host: localhost:9000
+Accept: application/json
+Content-Type: application/json
+Origin: http://localhost:9000
+X-Csrf-Token: cbc4404b-5143-42c4-b6db-2155a495a63f
+
+{
+    "authority": "USER",
+    "username": "danakt",
+    "password": "danakt",
+    "email": "danakt@gmail.com",
+    "isActive": true
+}
+
+###
 GET /api/v1/identities
 Host: localhost:9000
 Accept: application/json
@@ -258,6 +274,33 @@ X-Csrf-Token: a5239796-99d1-4626-b492-9d0ea4397987
 }
 
 ###
+POST /api/v1/employees/create
+Host: localhost:9000
+Accept: application/json
+Content-Type: application/json
+Origin: http://localhost:9000
+X-Csrf-Token: 0ad03bd6-0007-4f41-b471-212e04796e89
+Authorization: Basic danakt@gmail.com danakt
+
+{
+    "identityId": "cf919d59-1342-4ede-a75a-ffe80ef1f9b8",
+    "position": "SERVANT",
+    "locationRestaurantId": "8d0a5e94-03d1-4dd3-b0c1-979099d0f80f",
+    "locationAddressId": "5950e235-4690-4702-87da-6e4878c1ae43",
+    "firstname": "Molchanov",
+    "lastname": "Zair",
+    "patronymic": "Viktorovich",
+    "age": 31,
+    "birthday": "1994-12-12",
+    "employeeAddress": {
+        "city": "Saint-Petersburg",
+        "street": "Martova",
+        "house": "23/1",
+        "apartment": "12"
+    }
+}
+
+###
 GET /api/v1/employees
 Host: localhost:9000
 Accept: application/json
@@ -266,6 +309,13 @@ Accept: application/json
 GET /api/v1/employees/by-id?employeeId=4f9da711-b3ae-4079-a7fe-4861317f27c0
 Host: localhost:9000
 Accept: application/json
+Authorization: Basic burgasvv@gmail.com burgasvv
+
+###
+GET /api/v1/employees/by-id?employeeId=9ab19edd-d37a-48da-8e1a-1f84f44033ec
+Host: localhost:9000
+Accept: application/json
+Authorization: Basic zagor@gmail.com zagor
 
 ###
 PUT /api/v1/employees/update
@@ -280,3 +330,19 @@ X-Csrf-Token: 65b61d79-fd53-4f09-9387-a9a47c82b2f4
     "locationRestaurantId": "8d0a5e94-03d1-4dd3-b0c1-979099d0f80f",
     "locationAddressId": "5950e235-4690-4702-87da-6e4878c1ae43"
 }
+
+###
+PUT /api/v1/employees/add-servant?directorId=4f9da711-b3ae-4079-a7fe-4861317f27c0&servantId=83422183-2b0f-46ed-a308-2fe80fc8121b
+Host: localhost:9000
+Accept: application/json
+Origin: http://localhost:9000
+X-Csrf-Token: b96a9634-204d-45aa-bb83-d41f8a6fad57
+Authorization: Basic burgasvv@gmail.com burgasvv
+
+###
+DELETE /api/v1/employees/remove-servant?directorId=4f9da711-b3ae-4079-a7fe-4861317f27c0&servantId=9ab19edd-d37a-48da-8e1a-1f84f44033ec
+Host: localhost:9000
+Accept: application/json
+Origin: http://localhost:9000
+X-Csrf-Token: a6857592-af17-48cd-aece-fd1c43ea9bb3
+Authorization: Basic burgasvv@gmail.com burgasvv

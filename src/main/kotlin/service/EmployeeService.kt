@@ -2,24 +2,26 @@ package org.burgas.service
 
 import io.ktor.http.*
 import io.ktor.server.application.*
+import io.ktor.server.auth.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import io.ktor.util.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.toJavaLocalDate
 import kotlinx.serialization.Serializable
 import org.burgas.plugin.*
-import org.jetbrains.exposed.v1.core.ResultRow
-import org.jetbrains.exposed.v1.core.alias
-import org.jetbrains.exposed.v1.core.eq
-import org.jetbrains.exposed.v1.core.leftJoin
+import org.burgas.plugin.Identity
+import org.jetbrains.exposed.v1.core.*
 import org.jetbrains.exposed.v1.core.statements.InsertStatement
 import org.jetbrains.exposed.v1.core.statements.UpdateStatement
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.transactions.experimental.newSuspendedTransaction
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
 import java.sql.Connection
@@ -64,7 +66,7 @@ data class EmployeeShortResponse(
 )
 
 @Serializable
-data class EmployeeFullResponse(
+data class EmployeeDirectorResponse(
     @Serializable(with = UUIDSerialization::class)
     val id: UUID? = null,
     val identity: IdentityShortResponse? = null,
@@ -76,7 +78,25 @@ data class EmployeeFullResponse(
     val patronymic: String? = null,
     val age: Int? = null,
     val birthday: String? = null,
-    val employeeAddress: AddressResponse? = null
+    val employeeAddress: AddressResponse? = null,
+    val servants: List<EmployeeShortResponse>? = null
+)
+
+@Serializable
+data class EmployeeServantResponse(
+    @Serializable(with = UUIDSerialization::class)
+    val id: UUID? = null,
+    val identity: IdentityShortResponse? = null,
+    val position: Position? = null,
+    val restaurant: RestaurantShortResponse? = null,
+    val location: LocationShortResponse? = null,
+    val firstname: String? = null,
+    val lastname: String? = null,
+    val patronymic: String? = null,
+    val age: Int? = null,
+    val birthday: String? = null,
+    val employeeAddress: AddressResponse? = null,
+    val director: EmployeeShortResponse? = null
 )
 
 fun ResultRow.toEmployeeShortResponse(): EmployeeShortResponse {
@@ -96,7 +116,7 @@ fun ResultRow.toEmployeeShortResponse(): EmployeeShortResponse {
     )
 }
 
-fun ResultRow.toEmployeeFullResponse(): EmployeeFullResponse {
+fun ResultRow.toEmployeeDirectorResponse(servants: List<EmployeeShortResponse>): EmployeeDirectorResponse {
     val identity = Identity.selectAll().where { Identity.id eq this[Employee.identityId] }
         .map { resultRow -> resultRow.toIdentityShortResponse() }
         .singleOrNull()
@@ -117,7 +137,7 @@ fun ResultRow.toEmployeeFullResponse(): EmployeeFullResponse {
         .map { resultRow -> resultRow.toAddressResponse() }
         .singleOrNull()
 
-    return EmployeeFullResponse(
+    return EmployeeDirectorResponse(
         id = this[Employee.id],
         identity = identity,
         position = this[Employee.position],
@@ -128,7 +148,45 @@ fun ResultRow.toEmployeeFullResponse(): EmployeeFullResponse {
         patronymic = this[Employee.patronymic],
         age = this[Employee.age],
         birthday = this[Employee.birthday].format(DateTimeFormatter.ofPattern("dd MMMM yyyy")),
-        employeeAddress = employeeAddress
+        employeeAddress = employeeAddress,
+        servants = servants
+    )
+}
+
+fun ResultRow.toEmployeeServantResponse(director: EmployeeShortResponse?): EmployeeServantResponse {
+    val identity = Identity.selectAll().where { Identity.id eq this[Employee.identityId] }
+        .map { resultRow -> resultRow.toIdentityShortResponse() }
+        .singleOrNull()
+
+    val restaurant =
+        Restaurant.selectAll().where { Restaurant.id eq (this[Employee.locationRestaurantId] ?: UUID.randomUUID()) }
+            .map { resultRow -> resultRow.toRestaurantShortResponse() }
+            .singleOrNull()
+
+    val location = Location
+        .leftJoin(Address, { Location.addressId }, { Address.id })
+        .selectAll()
+        .where { Address.id eq (this[Employee.locationAddressId] ?: UUID.randomUUID()) }
+        .map { resultRow -> resultRow.toLocationShortResponse() }
+        .singleOrNull()
+
+    val employeeAddress = Address.selectAll().where { Address.id eq this[Employee.employeeAddressId] }
+        .map { resultRow -> resultRow.toAddressResponse() }
+        .singleOrNull()
+
+    return EmployeeServantResponse(
+        id = this[Employee.id],
+        identity = identity,
+        position = this[Employee.position],
+        restaurant = restaurant,
+        location = location,
+        firstname = this[Employee.firstname],
+        lastname = this[Employee.lastname],
+        patronymic = this[Employee.patronymic],
+        age = this[Employee.age],
+        birthday = this[Employee.birthday].format(DateTimeFormatter.ofPattern("dd MMMM yyyy")),
+        employeeAddress = employeeAddress,
+        director = director
     )
 }
 
@@ -146,18 +204,24 @@ fun InsertStatement<Number>.toEmployee(employeeRequest: EmployeeRequest, employe
     this[Employee.employeeAddressId] = employeeAddressId
 }
 
-fun UpdateStatement.toEmployee(employeeRequest: EmployeeRequest, employee: ResultRow, employeeAddress: AddressResponse?) {
+fun UpdateStatement.toEmployee(
+    employeeRequest: EmployeeRequest,
+    employee: ResultRow,
+    employeeAddress: AddressResponse?
+) {
     this[Employee.id] = employee[Employee.id]
     this[Employee.identityId] = employeeRequest.identityId ?: employee[Employee.identityId]
     this[Employee.position] = employeeRequest.position ?: employee[Employee.position]
-    this[Employee.locationRestaurantId] = employeeRequest.locationRestaurantId ?: employee[Employee.locationRestaurantId]
+    this[Employee.locationRestaurantId] =
+        employeeRequest.locationRestaurantId ?: employee[Employee.locationRestaurantId]
     this[Employee.locationAddressId] = employeeRequest.locationAddressId ?: employee[Employee.locationAddressId]
     this[Employee.firstname] = employeeRequest.firstname ?: employee[Employee.firstname]
     this[Employee.lastname] = employeeRequest.lastname ?: employee[Employee.lastname]
     this[Employee.patronymic] = employeeRequest.patronymic ?: employee[Employee.patronymic]
     this[Employee.age] = employeeRequest.age ?: employee[Employee.age]
     this[Employee.birthday] = employee[Employee.birthday]
-    this[Employee.employeeAddressId] = if (employeeAddress != null) employeeAddress.id as UUID else employee[Employee.employeeAddressId]
+    this[Employee.employeeAddressId] =
+        if (employeeAddress != null) employeeAddress.id as UUID else employee[Employee.employeeAddressId]
 }
 
 class EmployeeService {
@@ -184,10 +248,11 @@ class EmployeeService {
     }
 
     suspend fun findById(employeeId: UUID) = withContext(Dispatchers.Default) {
-        val locationAddress = Address.alias("locationAddress")
-        val employeeAddress = Address.alias("employeeAddress")
         transaction(readOnly = true) {
-            Employee
+            val locationAddress = Address.alias("locationAddress")
+            val employeeAddress = Address.alias("employeeAddress")
+
+            val employee = Employee
                 .leftJoin(Identity, { Employee.identityId }, { Identity.id })
                 .leftJoin(Restaurant, { Employee.locationRestaurantId }, { Restaurant.id })
                 .leftJoin(
@@ -202,8 +267,26 @@ class EmployeeService {
                 )
                 .selectAll()
                 .where { Employee.id eq employeeId }
-                .map { resultRow -> resultRow.toEmployeeFullResponse() }
                 .singleOrNull() ?: throw IllegalArgumentException("Employee not found")
+
+            if (employee[Employee.position] == Position.DIRECTOR) {
+                val servants = Employee
+                    .leftJoin(DirectorServant, { Employee.id }, { DirectorServant.servantId })
+                    .select(Employee.fields)
+                    .where { DirectorServant.directorId eq employee[Employee.id] }
+                    .map { resultRow -> resultRow.toEmployeeShortResponse() }
+                    .toList()
+                return@transaction employee.toEmployeeDirectorResponse(servants)
+
+            } else {
+                val director = Employee
+                    .leftJoin(DirectorServant, { Employee.id }, { DirectorServant.directorId })
+                    .select(Employee.fields)
+                    .where { DirectorServant.servantId eq employee[Employee.id] }
+                    .map { resultRow -> resultRow.toEmployeeShortResponse() }
+                    .singleOrNull()
+                return@transaction employee.toEmployeeServantResponse(director)
+            }
         }
     }
 
@@ -218,8 +301,8 @@ class EmployeeService {
         transaction(transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
             val employee = Employee.selectAll().where { Employee.id eq employeeId }.singleOrNull()
                 ?: throw IllegalArgumentException("Employee not found")
-            Employee.update({ Employee.id eq employee[Employee.id] }) {
-                    updateStatement -> updateStatement.toEmployee(employeeRequest, employee, employeeAddress)
+            Employee.update({ Employee.id eq employee[Employee.id] }) { updateStatement ->
+                updateStatement.toEmployee(employeeRequest, employee, employeeAddress)
             } > 0
         }
     }
@@ -227,6 +310,36 @@ class EmployeeService {
     suspend fun delete(employeeId: UUID) = withContext(Dispatchers.Default) {
         transaction(transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
             Employee.deleteWhere { Employee.id eq employeeId } > 0
+        }
+    }
+
+    suspend fun addServant(directorId: UUID, servantId: UUID) = withContext(Dispatchers.Default) {
+        transaction(transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
+            val director = Employee.selectAll().where { Employee.id eq directorId }
+                .singleOrNull() ?: throw IllegalArgumentException("Director not found")
+            val servant = Employee.selectAll().where { Employee.id eq servantId }
+                .singleOrNull() ?: throw IllegalArgumentException("Servant not found")
+
+            if (director[Employee.position] == Position.DIRECTOR && servant[Employee.position] != Position.DIRECTOR) {
+                DirectorServant.insert { insertStatement ->
+                    insertStatement[DirectorServant.directorId] = director[Employee.id]
+                    insertStatement[DirectorServant.servantId] = servant[Employee.id]
+                }
+            } else {
+                throw IllegalArgumentException("Wrong positions")
+            }
+        }
+    }
+
+    suspend fun removeServant(directorId: UUID, servantId: UUID) = withContext(Dispatchers.Default) {
+        transaction(transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
+            val director = Employee.selectAll().where { Employee.id eq directorId }
+                .singleOrNull() ?: throw IllegalArgumentException("Director not found")
+            val servant = Employee.selectAll().where { Employee.id eq servantId }
+                .singleOrNull() ?: throw IllegalArgumentException("Servant not found")
+            DirectorServant.deleteWhere {
+                (DirectorServant.directorId eq director[Employee.id]) and (DirectorServant.servantId eq servant[Employee.id])
+            } > 0
         }
     }
 }
@@ -237,42 +350,119 @@ fun Application.configureEmployeeRouter() {
 
     routing {
 
-        route("/api/v1") {
+        @Suppress("DEPRECATION")
+        intercept(ApplicationCallPipeline.Call) {
+            if (
+                call.request.path().equals("/api/v1/employees/create", false) ||
+                call.request.path().equals("/api/v1/employees/update", false)
+            ) {
+                newSuspendedTransaction {
+                    val principal = call.principal<UserPasswordCredential>()
+                        ?: throw IllegalArgumentException("Not authenticated")
+                    val employeeRequest = call.receive(EmployeeRequest::class)
 
-            post("/employees/create") {
-                val employeeRequest = call.receive(EmployeeRequest::class)
-                employeeService.create(employeeRequest)
-                call.respond(HttpStatusCode.Created)
-            }
+                    val identityId =
+                        employeeRequest.identityId ?: throw IllegalArgumentException("Employee identityId is null")
+                    val identity = Identity.selectAll().where { Identity.email eq principal.name }
+                        .singleOrNull() ?: throw IllegalArgumentException("Identity authentication not found")
 
-            get("/employees") {
-                call.respond(HttpStatusCode.OK, employeeService.findAll())
-            }
+                    if (identity[Identity.id] == identityId) {
+                        call.attributes[AttributeKey<EmployeeRequest>("employeeRequest")] = employeeRequest
+                        proceed()
 
-            get("/employees/by-id") {
-                val employeeId = UUID.fromString(
-                    call.parameters["employeeId"] ?: throw IllegalArgumentException("Employee id is null")
-                )
-                call.respond(HttpStatusCode.OK, employeeService.findById(employeeId))
-            }
+                    } else {
+                        throw IllegalArgumentException("Identity not authorized")
+                    }
+                }
 
-            put("/employees/update") {
-                val employeeRequest = call.receive(EmployeeRequest::class)
-                if (employeeService.update(employeeRequest)) {
-                    call.respond(HttpStatusCode.OK)
-                } else {
-                    call.respond(HttpStatusCode.NotFound)
+            } else if (call.request.path().equals("/api/v1/employees/delete", false)) {
+                newSuspendedTransaction {
+                    val principal = call.principal<UserPasswordCredential>()
+                        ?: throw IllegalArgumentException("Not authenticated")
+                    val employeeId = UUID.fromString(
+                        call.parameters["employeeId"] ?: throw IllegalArgumentException("Employee id is null")
+                    )
+                    val identityEmployee = Identity
+                        .leftJoin(Employee, { Identity.id }, { Employee.identityId })
+                        .selectAll()
+                        .where { Identity.email eq principal.name }
+                        .singleOrNull() ?: throw IllegalArgumentException("Identity authentication not found")
+
+                    if (identityEmployee[Employee.id] == employeeId) {
+                        proceed()
+
+                    } else {
+                        throw IllegalArgumentException("Identity employee not authorized")
+                    }
                 }
             }
+            proceed()
+        }
 
-            delete("/employees/delete") {
-                val employeeId = UUID.fromString(
-                    call.parameters["employeeId"] ?: throw IllegalArgumentException("Employee id is null")
-                )
-                if (employeeService.delete(employeeId)) {
+        route("/api/v1") {
+
+            authenticate("basic-auth-all") {
+
+                post("/employees/create") {
+                    val employeeRequest = call.attributes[AttributeKey<EmployeeRequest>("employeeRequest")]
+                    employeeService.create(employeeRequest)
+                    call.respond(HttpStatusCode.Created)
+                }
+
+                get("/employees") {
+                    call.respond(HttpStatusCode.OK, employeeService.findAll())
+                }
+
+                get("/employees/by-id") {
+                    val employeeId = UUID.fromString(
+                        call.parameters["employeeId"] ?: throw IllegalArgumentException("Employee id is null")
+                    )
+                    call.respond(HttpStatusCode.OK, employeeService.findById(employeeId))
+                }
+
+                put("/employees/update") {
+                    val employeeRequest = call.attributes[AttributeKey<EmployeeRequest>("employeeRequest")]
+                    if (employeeService.update(employeeRequest)) {
+                        call.respond(HttpStatusCode.OK)
+                    } else {
+                        call.respond(HttpStatusCode.NotFound)
+                    }
+                }
+
+                delete("/employees/delete") {
+                    val employeeId = UUID.fromString(
+                        call.parameters["employeeId"] ?: throw IllegalArgumentException("Employee id is null")
+                    )
+                    if (employeeService.delete(employeeId)) {
+                        call.respond(HttpStatusCode.OK)
+                    } else {
+                        call.respond(HttpStatusCode.NotFound)
+                    }
+                }
+
+                put("/employees/add-servant") {
+                    val directorId = UUID.fromString(
+                        call.parameters["directorId"] ?: throw IllegalArgumentException("Director id is null")
+                    )
+                    val servantId = UUID.fromString(
+                        call.parameters["servantId"] ?: throw IllegalArgumentException("Servant id is null")
+                    )
+                    employeeService.addServant(directorId, servantId)
                     call.respond(HttpStatusCode.OK)
-                } else {
-                    call.respond(HttpStatusCode.NotFound)
+                }
+
+                delete("/employees/remove-servant") {
+                    val directorId = UUID.fromString(
+                        call.parameters["directorId"] ?: throw IllegalArgumentException("Director id is null")
+                    )
+                    val servantId = UUID.fromString(
+                        call.parameters["servantId"] ?: throw IllegalArgumentException("Servant id is null")
+                    )
+                    if (employeeService.removeServant(directorId, servantId)) {
+                        call.respond(HttpStatusCode.OK)
+                    } else {
+                        call.respond(HttpStatusCode.NotFound)
+                    }
                 }
             }
         }
