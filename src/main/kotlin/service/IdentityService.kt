@@ -34,7 +34,7 @@ import java.util.*
 
 @Suppress("unused")
 enum class Authority {
-    ADMIN, USER, DIRECTOR, EMPLOYEE
+    ADMIN, USER
 }
 
 @Serializable

@@ -91,3 +91,192 @@ DELETE /api/v1/identities/remove-files?identityId=033c7dcf-b8a2-498f-8a6b-eafde0
     fileId=1c6582e3-23e0-4f7a-8024-4e2d732ce51c&fileId=ced29ce7-3b86-4d9c-8e65-416bd82d6ead
 Host: localhost:9000
 Accept: application/json
+
+
+
+### Restaurant Requests
+
+
+
+###
+POST /api/v1/restaurants/create
+Host: localhost:9000
+Accept: application/json
+Content-Type: application/json
+Origin: http://localhost:9000
+X-Csrf-Token: 044f1ec9-3d34-4952-be3b-63eabe80e9af
+
+{
+    "name": "ShashlickON",
+    "description": "Description of restaurant ShashlickON"
+}
+
+###
+GET /api/v1/restaurants/by-id?restaurantId=da31afc2-3d1e-418f-b64f-d4f0a85b0f16
+Host: localhost:9000
+Accept: application/json
+
+###
+GET /api/v1/restaurants
+Host: localhost:9000
+Accept: application/json
+
+###
+PUT /api/v1/restaurant/update
+Host: localhost:9000
+Accept: application/json
+Content-Type: application/json
+Origin: http://localhost:9000
+X-Csrf-Token: 38dd6a47-895e-43fc-af15-4ada46b853ca
+
+{
+    "id": "67473842-72dd-450c-81d1-98fa9de9f0d6",
+    "description": "Description of restaurant ShashlickON. 2024 year"
+}
+
+###
+DELETE /api/v1/restaurants/delete?restaurantId=24c6fc2b-9fde-4c85-9eb1-641e875157b7
+Host: localhost:9000
+Accept: application/json
+Origin: http://localhost:9000
+X-Csrf-Token: 55a044e9-7578-4559-bfb3-43096fabfcfa
+
+
+
+### Location Requests
+
+
+
+###
+POST /api/v1/locations/create
+Host: localhost:9000
+Accept: application/json
+Content-Type: application/json
+Origin: http://localhost:9000
+X-Csrf-Token: b1dc2964-6cd5-46e1-8a7a-bec79e1e7f3f
+
+{
+    "restaurantId": "8d0a5e94-03d1-4dd3-b0c1-979099d0f80f",
+    "address": {
+        "city": "Moscow",
+        "street": "Sverdlova",
+        "house": "43b",
+        "apartment": "34"
+    },
+    "open": "08:00",
+    "close": "21:00"
+}
+
+###
+GET /api/v1/locations
+Host: localhost:9000
+Accept: application/json
+
+###
+GET /api/v1/locations/by-id?restaurantId=da31afc2-3d1e-418f-b64f-d4f0a85b0f16&addressId=a1590462-5dc1-4b47-a525-012346966a18
+Host: localhost:9000
+Accept: application/json
+
+###
+PUT /api/v1/locations/update?restaurantId=67473842-72dd-450c-81d1-98fa9de9f0d6&addressId=b8426fe2-cee6-4b36-8f10-5e58d73d121c
+Host: localhost:9000
+Accept: application/json
+Content-Type: application/json
+Origin: http://localhost:9000
+X-Csrf-Token: 51e43e2f-3765-4e7a-b0f4-63024afe2945
+
+{
+    "address": {
+        "city": "Saint-Petersburg",
+        "street": "Morskaya",
+        "house": "78/4",
+        "apartment": "12"
+    }
+}
+
+###
+DELETE /api/v1/locations/delete?restaurantId=67473842-72dd-450c-81d1-98fa9de9f0d6&addressId=1a67168f-ba15-435e-a202-207ec71fe65c
+Host: localhost:9000
+Accept: application/json
+Origin: http://localhost:9000
+X-Csrf-Token: eaec7467-8d2b-41bc-ad1e-c3c2633f3362
+
+
+
+### Employe Requests
+
+
+
+###
+POST /api/v1/employees/create
+Host: localhost:9000
+Accept: application/json
+Content-Type: application/json
+Origin: http://localhost:9000
+X-Csrf-Token: b07bba41-c649-440a-b9cd-510b5adb37b7
+
+{
+    "identityId": "5d755809-d1df-4506-887c-90bb0425b612",
+    "position": "DIRECTOR",
+    "firstname": "Burgas",
+    "lastname": "Vyacheslav",
+    "patronymic": "Vasil'evich",
+    "age": 32,
+    "birthday": "1993-01-10",
+    "employeeAddress": {
+        "city": "Novosibirsk",
+        "street": "Ivanova",
+        "house": "28",
+        "apartment": "48"
+    }
+}
+
+###
+POST /api/v1/employees/create
+Host: localhost:9000
+Accept: application/json
+Content-Type: application/json
+Origin: http://localhost:9000
+X-Csrf-Token: a5239796-99d1-4626-b492-9d0ea4397987
+
+{
+    "identityId": "010b14de-23b4-423d-9191-ba9e488bffe7",
+    "position": "MANAGER",
+    "locationRestaurantId": "8d0a5e94-03d1-4dd3-b0c1-979099d0f80f",
+    "locationAddressId": "5950e235-4690-4702-87da-6e4878c1ae43",
+    "firstname": "Zagorul'ko",
+    "lastname": "Boris",
+    "patronymic": "Jur'evich",
+    "age": 32,
+    "birthday": "1993-10-30",
+    "employeeAddress": {
+        "city": "Moscow",
+        "street": "Chekaeva",
+        "house": "52",
+        "apartment": "139"
+    }
+}
+
+###
+GET /api/v1/employees
+Host: localhost:9000
+Accept: application/json
+
+###
+GET /api/v1/employees/by-id?employeeId=4f9da711-b3ae-4079-a7fe-4861317f27c0
+Host: localhost:9000
+Accept: application/json
+
+###
+PUT /api/v1/employees/update
+Host: localhost:9000
+Accept: application/json
+Content-Type: application/json
+Origin: http://localhost:9000
+X-Csrf-Token: 65b61d79-fd53-4f09-9387-a9a47c82b2f4
+
+{
+    "id": "4f9da711-b3ae-4079-a7fe-4861317f27c0",
+    "locationRestaurantId": "8d0a5e94-03d1-4dd3-b0c1-979099d0f80f",
+    "locationAddressId": "5950e235-4690-4702-87da-6e4878c1ae43"
+}
