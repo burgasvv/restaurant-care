@@ -2,19 +2,17 @@ package org.burgas.service
 
 import io.ktor.http.*
 import io.ktor.server.application.*
-import io.ktor.server.auth.authenticate
+import io.ktor.server.auth.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
-import org.burgas.plugin.Address
-import org.burgas.plugin.Location
-import org.burgas.plugin.Restaurant
-import org.burgas.plugin.UUIDSerialization
+import org.burgas.plugin.*
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.leftJoin
 import org.jetbrains.exposed.v1.core.statements.InsertStatement
 import org.jetbrains.exposed.v1.core.statements.UpdateStatement
 import org.jetbrains.exposed.v1.jdbc.*
@@ -66,7 +64,8 @@ fun ResultRow.toRestaurantFullResponse(locations: List<LocationShortResponse>): 
 
 fun InsertStatement<Number>.toRestaurant(restaurantRequest: RestaurantRequest) {
     this[Restaurant.name] = restaurantRequest.name ?: throw IllegalArgumentException("Restaurant name is null")
-    this[Restaurant.description] = restaurantRequest.description ?: throw IllegalArgumentException("Restaurant description is null")
+    this[Restaurant.description] =
+        restaurantRequest.description ?: throw IllegalArgumentException("Restaurant description is null")
 }
 
 fun UpdateStatement.toRestaurant(restaurantRequest: RestaurantRequest, restaurant: ResultRow) {
@@ -132,6 +131,33 @@ fun Application.configureRestaurantRouter() {
     val restaurantService = RestaurantService()
 
     routing {
+
+        @Suppress("DEPRECATION")
+        intercept(ApplicationCallPipeline.Call) {
+            if (
+                call.request.path().equals("/api/v1/restaurants/create", false) ||
+                call.request.path().equals("/api/v1/restaurants/update", false) ||
+                call.request.path().equals("/api/v1/restaurants/delete", false)
+            ) {
+                val principal = call.principal<UserPasswordCredential>()
+                    ?: throw IllegalArgumentException("Not authenticated")
+                val identityEmployee = Identity
+                    .leftJoin(Employee, { Identity.id }, { Employee.identityId })
+                    .selectAll()
+                    .where { Identity.email eq principal.name }
+                    .singleOrNull() ?: throw IllegalArgumentException("Identity-employee not authenticated")
+
+                if (
+                    identityEmployee[Employee.position] == Position.DIRECTOR ||
+                    identityEmployee[Employee.position] == Position.MANAGER
+                ) {
+                    proceed()
+
+                }  else {
+                    throw IllegalArgumentException("Identity not authorized")
+                }
+            }
+        }
 
         route("/api/v1") {
 

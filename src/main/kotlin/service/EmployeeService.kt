@@ -247,6 +247,14 @@ class EmployeeService {
         }
     }
 
+    suspend fun findByRestaurant(restaurantId: UUID) = withContext(Dispatchers.Default) {
+        transaction(readOnly = true) {
+            Employee.selectAll().where { Employee.locationRestaurantId eq restaurantId }
+                .map { resultRow -> resultRow.toEmployeeShortResponse() }
+                .toList()
+        }
+    }
+
     suspend fun findById(employeeId: UUID) = withContext(Dispatchers.Default) {
         transaction(readOnly = true) {
             val locationAddress = Address.alias("locationAddress")
@@ -361,12 +369,23 @@ fun Application.configureEmployeeRouter() {
                         ?: throw IllegalArgumentException("Not authenticated")
                     val employeeRequest = call.receive(EmployeeRequest::class)
 
-                    val identityId =
-                        employeeRequest.identityId ?: throw IllegalArgumentException("Employee identityId is null")
-                    val identity = Identity.selectAll().where { Identity.email eq principal.name }
+                    val identityId = employeeRequest.identityId
+                        ?: throw IllegalArgumentException("Employee identityId is null")
+
+                    val identity = Identity
+                        .leftJoin(Employee, { Identity.id }, { Employee.identityId })
+                        .selectAll()
+                        .where { Identity.email eq principal.name }
                         .singleOrNull() ?: throw IllegalArgumentException("Identity authentication not found")
 
-                    if (identity[Identity.id] == identityId) {
+                    if (
+                        (identity[Identity.id] == identityId ||
+                                (identity[Employee.position] == Position.DIRECTOR ||
+                                        identity[Employee.position] == Position.MANAGER)) ||
+                        (identity[Identity.id] == identityId &&
+                                (identity[Employee.position] == Position.DIRECTOR ||
+                                        identity[Employee.position] == Position.MANAGER))
+                    ) {
                         call.attributes[AttributeKey<EmployeeRequest>("employeeRequest")] = employeeRequest
                         proceed()
 
@@ -388,14 +407,61 @@ fun Application.configureEmployeeRouter() {
                         .where { Identity.email eq principal.name }
                         .singleOrNull() ?: throw IllegalArgumentException("Identity authentication not found")
 
-                    if (identityEmployee[Employee.id] == employeeId) {
+                    if (
+                        (identityEmployee[Employee.id] == employeeId ||
+                                (identityEmployee[Employee.position] == Position.DIRECTOR ||
+                                        identityEmployee[Employee.position] == Position.MANAGER)) ||
+                        (identityEmployee[Employee.id] == employeeId &&
+                                (identityEmployee[Employee.position] == Position.DIRECTOR ||
+                                        identityEmployee[Employee.position] == Position.MANAGER))
+                    ) {
                         proceed()
 
                     } else {
                         throw IllegalArgumentException("Identity employee not authorized")
                     }
                 }
+            } else if (
+                call.request.path().equals("/api/v1/employees/add-servant", false) ||
+                call.request.path().equals("/api/v1/employees/remove-servant", false)
+            ) {
+                newSuspendedTransaction {
+                    val principal = call.principal<UserPasswordCredential>()
+                        ?: throw IllegalArgumentException("Not authentication")
+                    val directorId = UUID.fromString(
+                        call.parameters["directorId"] ?: throw IllegalArgumentException("DirectorId is null")
+                    )
+                    val servantId = UUID.fromString(
+                        call.parameters["servantId"] ?: throw IllegalArgumentException("ServantId is null")
+                    )
+                    val identityDirectorEmployee = Identity
+                        .leftJoin(Employee, { Identity.id }, { Employee.identityId })
+                        .leftJoin(Restaurant, { Employee.locationRestaurantId }, { Restaurant.id })
+                        .selectAll()
+                        .where { Employee.id eq directorId }
+                        .singleOrNull() ?: throw IllegalArgumentException("Identity director not found")
+
+                    val identityServantEmployee = Identity
+                        .leftJoin(Employee, { Identity.id }, { Employee.identityId })
+                        .leftJoin(Restaurant, { Employee.locationRestaurantId }, { Restaurant.id })
+                        .selectAll()
+                        .where { Employee.id eq servantId }
+                        .singleOrNull() ?: throw IllegalArgumentException("Identity servant not found")
+
+                    if (identityDirectorEmployee[Identity.email] == principal.name) {
+
+                        if (
+                            identityDirectorEmployee[Employee.position] == Position.DIRECTOR &&
+                            identityDirectorEmployee[Restaurant.id] == identityServantEmployee[Restaurant.id]
+                        )
+                            proceed()
+
+                    } else {
+                        throw IllegalArgumentException("Identity not authenticated")
+                    }
+                }
             }
+
             proceed()
         }
 
@@ -411,6 +477,13 @@ fun Application.configureEmployeeRouter() {
 
                 get("/employees") {
                     call.respond(HttpStatusCode.OK, employeeService.findAll())
+                }
+
+                get("/employees/by-restaurant") {
+                    val restaurantId = UUID.fromString(
+                        call.parameters["restaurantId"] ?: throw IllegalArgumentException("Restaurant id is null")
+                    )
+                    call.respond(HttpStatusCode.OK, employeeService.findByRestaurant(restaurantId))
                 }
 
                 get("/employees/by-id") {

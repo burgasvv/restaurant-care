@@ -219,7 +219,7 @@ X-Csrf-Token: eaec7467-8d2b-41bc-ad1e-c3c2633f3362
 
 
 
-### Employe Requests
+### Employee Requests
 
 
 
@@ -229,7 +229,8 @@ Host: localhost:9000
 Accept: application/json
 Content-Type: application/json
 Origin: http://localhost:9000
-X-Csrf-Token: b07bba41-c649-440a-b9cd-510b5adb37b7
+X-Csrf-Token: 379dab07-469e-432f-a73e-4e5b0a54189e
+Authorization: Basic burgasvv@gmail.com burgasvv
 
 {
     "identityId": "5d755809-d1df-4506-887c-90bb0425b612",
@@ -254,6 +255,7 @@ Accept: application/json
 Content-Type: application/json
 Origin: http://localhost:9000
 X-Csrf-Token: a5239796-99d1-4626-b492-9d0ea4397987
+Authorization: Basic burgasvv@gmail.com burgasvv
 
 {
     "identityId": "010b14de-23b4-423d-9191-ba9e488bffe7",
@@ -279,8 +281,8 @@ Host: localhost:9000
 Accept: application/json
 Content-Type: application/json
 Origin: http://localhost:9000
-X-Csrf-Token: 0ad03bd6-0007-4f41-b471-212e04796e89
-Authorization: Basic danakt@gmail.com danakt
+X-Csrf-Token: a5239796-99d1-4626-b492-9d0ea4397987
+Authorization: Basic burgasvv@gmail.com burgasvv
 
 {
     "identityId": "cf919d59-1342-4ede-a75a-ffe80ef1f9b8",
@@ -304,15 +306,22 @@ Authorization: Basic danakt@gmail.com danakt
 GET /api/v1/employees
 Host: localhost:9000
 Accept: application/json
+Authorization: Basic burgasvv@gmail.com burgasvv
 
 ###
-GET /api/v1/employees/by-id?employeeId=4f9da711-b3ae-4079-a7fe-4861317f27c0
+GET /api/v1/employees/by-restaurant?restaurantId=8d0a5e94-03d1-4dd3-b0c1-979099d0f80f
 Host: localhost:9000
 Accept: application/json
 Authorization: Basic burgasvv@gmail.com burgasvv
 
 ###
-GET /api/v1/employees/by-id?employeeId=9ab19edd-d37a-48da-8e1a-1f84f44033ec
+GET /api/v1/employees/by-id?employeeId=2d5770c1-8a8a-463e-84b5-faaf59512755
+Host: localhost:9000
+Accept: application/json
+Authorization: Basic burgasvv@gmail.com burgasvv
+
+###
+GET /api/v1/employees/by-id?employeeId=9bb9169a-f327-4bad-a1cb-e18125d9168c
 Host: localhost:9000
 Accept: application/json
 Authorization: Basic zagor@gmail.com zagor
@@ -323,20 +332,22 @@ Host: localhost:9000
 Accept: application/json
 Content-Type: application/json
 Origin: http://localhost:9000
-X-Csrf-Token: 65b61d79-fd53-4f09-9387-a9a47c82b2f4
+X-Csrf-Token: e78d2b33-6580-4995-b87f-34d5c00262a6
+Authorization: Basic burgasvv@gmail.com burgasvv
 
 {
-    "id": "4f9da711-b3ae-4079-a7fe-4861317f27c0",
+    "id": "2d5770c1-8a8a-463e-84b5-faaf59512755",
+    "identityId": "5d755809-d1df-4506-887c-90bb0425b612",
     "locationRestaurantId": "8d0a5e94-03d1-4dd3-b0c1-979099d0f80f",
     "locationAddressId": "5950e235-4690-4702-87da-6e4878c1ae43"
 }
 
 ###
-PUT /api/v1/employees/add-servant?directorId=4f9da711-b3ae-4079-a7fe-4861317f27c0&servantId=83422183-2b0f-46ed-a308-2fe80fc8121b
+PUT /api/v1/employees/add-servant?directorId=2d5770c1-8a8a-463e-84b5-faaf59512755&servantId=d29dab8c-a6c0-4c4c-b793-a093a8fe4713
 Host: localhost:9000
 Accept: application/json
 Origin: http://localhost:9000
-X-Csrf-Token: b96a9634-204d-45aa-bb83-d41f8a6fad57
+X-Csrf-Token: 0f3cb94d-5ea9-4437-9a6e-4a95eedc1995
 Authorization: Basic burgasvv@gmail.com burgasvv
 
 ###

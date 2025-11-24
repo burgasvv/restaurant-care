@@ -1,30 +1,28 @@
 package org.burgas.service
 
-import io.ktor.http.HttpStatusCode
+import io.ktor.http.*
 import io.ktor.server.application.*
-import io.ktor.server.auth.authenticate
-import io.ktor.server.request.receive
-import io.ktor.server.response.respond
+import io.ktor.server.auth.*
+import io.ktor.server.request.*
+import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import io.ktor.util.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.toJavaLocalTime
-import kotlinx.datetime.toKotlinLocalTime
 import kotlinx.serialization.Serializable
-import org.burgas.plugin.Address
-import org.burgas.plugin.Location
-import org.burgas.plugin.Restaurant
-import org.burgas.plugin.UUIDSerialization
+import org.burgas.plugin.*
+import org.burgas.plugin.Identity
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.leftJoin
 import org.jetbrains.exposed.v1.core.statements.InsertStatement
 import org.jetbrains.exposed.v1.core.statements.UpdateStatement
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
-import org.jetbrains.exposed.v1.jdbc.transactions.experimental.newSuspendedTransaction
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
 import java.sql.Connection
@@ -161,6 +159,61 @@ fun Application.configureLocationRouter() {
 
     routing {
 
+        @Suppress("DEPRECATION")
+        intercept(ApplicationCallPipeline.Call) {
+            if (
+                call.request.path().equals("/api/v1/locations/create", false) ||
+                call.request.path().equals("/api/v1/locations/update", false)
+            ) {
+                val principal = call.principal<UserPasswordCredential>()
+                    ?: throw IllegalArgumentException("Not authenticated")
+                val identityEmployee = Identity
+                    .leftJoin(Employee, { Identity.id }, { Employee.identityId })
+                    .selectAll()
+                    .where { Identity.email eq principal.name }
+                    .singleOrNull() ?: throw IllegalArgumentException("Identity-employee not authenticated")
+
+                val locationRequest = call.receive(LocationRequest::class)
+                val restaurantId = locationRequest.restaurantId
+                    ?: throw IllegalArgumentException("Location request restaurant id is null")
+
+                if (
+                    (identityEmployee[Employee.position] == Position.DIRECTOR ||
+                    identityEmployee[Employee.position] == Position.MANAGER) &&
+                    identityEmployee[Employee.locationRestaurantId] == restaurantId
+                ) {
+                    call.attributes[AttributeKey<LocationRequest>("locationRequest")] = locationRequest
+                    proceed()
+
+                }  else {
+                    throw IllegalArgumentException("Identity-employee not authorized")
+                }
+
+            } else if (call.request.path().equals("/api/v1/locations/delete", false)) {
+                val principal = call.principal<UserPasswordCredential>()
+                    ?: throw IllegalArgumentException("Not authenticated")
+                val identityEmployee = Identity
+                    .leftJoin(Employee, { Identity.id }, { Employee.identityId })
+                    .selectAll()
+                    .where { Identity.email eq principal.name }
+                    .singleOrNull() ?: throw IllegalArgumentException("Identity-employee not authenticated")
+
+                val restaurantId = UUID.fromString(
+                    call.parameters["restaurantId"] ?: throw IllegalArgumentException("RestaurantId intercept is null")
+                )
+                if (
+                    (identityEmployee[Employee.position] == Position.DIRECTOR ||
+                            identityEmployee[Employee.position] == Position.MANAGER) &&
+                    identityEmployee[Employee.locationRestaurantId] == restaurantId
+                ) {
+                    proceed()
+
+                } else {
+                    throw IllegalArgumentException("Identity-employee not authorized")
+                }
+            }
+        }
+
         route("/api/v1") {
 
             get("/locations") {
@@ -180,7 +233,7 @@ fun Application.configureLocationRouter() {
             authenticate("basic-auth-all") {
 
                 post("/locations/create") {
-                    val locationRequest = call.receive(LocationRequest::class)
+                    val locationRequest = call.attributes[AttributeKey<LocationRequest>("locationRequest")]
                     locationService.create(locationRequest)
                     call.respond(HttpStatusCode.Created)
                 }
@@ -192,7 +245,7 @@ fun Application.configureLocationRouter() {
                     val addressId = UUID.fromString(
                         call.parameters["addressId"] ?: throw IllegalArgumentException("Address id is null")
                     )
-                    val locationRequest = call.receive(LocationRequest::class)
+                    val locationRequest = call.attributes[AttributeKey<LocationRequest>("locationRequest")]
                     if (locationService.update(locationRequest, restaurantId, addressId)) {
                         call.respond(HttpStatusCode.OK)
                     } else {
