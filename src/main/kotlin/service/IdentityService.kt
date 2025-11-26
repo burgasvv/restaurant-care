@@ -270,9 +270,9 @@ fun Application.configureIdentityRouter() {
             }
         }
 
-        route("/api/v1") {
+        route("/api/v1/identities") {
 
-            post("/identities/create") {
+            post("/create") {
                 val identityRequest = call.receive(IdentityRequest::class)
                 identityService.create(identityRequest)
                 call.respond(HttpStatusCode.Created)
@@ -280,11 +280,11 @@ fun Application.configureIdentityRouter() {
 
             authenticate("basic-auth-admin") {
 
-                get("/identities") {
+                get {
                     call.respond(HttpStatusCode.OK, identityService.findAll())
                 }
 
-                put("/identities/activate") {
+                put("/activate") {
                     val identityId = UUID.fromString(
                         call.parameters["identityId"] ?: throw IllegalArgumentException("Identity id is null")
                     )
@@ -292,7 +292,7 @@ fun Application.configureIdentityRouter() {
                     call.respond(HttpStatusCode.OK)
                 }
 
-                put("/identities/deactivate") {
+                put("/deactivate") {
                     val identityId = UUID.fromString(
                         call.parameters["identityId"] ?: throw IllegalArgumentException("Identity id is null")
                     )
@@ -303,14 +303,14 @@ fun Application.configureIdentityRouter() {
 
             authenticate("basic-auth-all") {
 
-                get("/identities/by-id") {
+                get("/by-id") {
                     val identityId = UUID.fromString(
                         call.parameters["identityId"] ?: throw IllegalArgumentException("Identity id is null")
                     )
                     call.respond(HttpStatusCode.OK, identityService.findById(identityId))
                 }
 
-                put("/identities/update") {
+                put("/update") {
                     val identityRequest = call.attributes[AttributeKey<IdentityRequest>("identityRequest")]
                     if (identityService.update(identityRequest)) {
                         call.respond(HttpStatusCode.OK)
@@ -319,7 +319,7 @@ fun Application.configureIdentityRouter() {
                     }
                 }
 
-                delete("/identities/delete") {
+                delete("/delete") {
                     val identityId = UUID.fromString(
                         call.parameters["identityId"] ?: throw IllegalArgumentException("Identity id is null")
                     )
@@ -330,7 +330,7 @@ fun Application.configureIdentityRouter() {
                     }
                 }
 
-                put("/identities/change-password") {
+                put("/change-password") {
                     val identityId = UUID.fromString(
                         call.parameters["identityId"] ?: throw IllegalArgumentException("Identity id is null")
                     )
@@ -340,7 +340,7 @@ fun Application.configureIdentityRouter() {
                     call.respond(HttpStatusCode.OK)
                 }
 
-                post("/identities/add-files") {
+                post("/add-files") {
                     val identityId = UUID.fromString(
                         call.parameters["identityId"] ?: throw IllegalArgumentException("Identity id is null")
                     )
@@ -349,7 +349,7 @@ fun Application.configureIdentityRouter() {
                     call.respond(HttpStatusCode.Created)
                 }
 
-                delete("/identities/remove-files") {
+                delete("/remove-files") {
                     val identityId = UUID.fromString(
                         call.parameters["identityId"] ?: throw IllegalArgumentException("Identity id is null")
                     )

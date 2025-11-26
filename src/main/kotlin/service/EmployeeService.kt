@@ -465,35 +465,35 @@ fun Application.configureEmployeeRouter() {
             proceed()
         }
 
-        route("/api/v1") {
+        route("/api/v1/employees") {
 
             authenticate("basic-auth-all") {
 
-                post("/employees/create") {
+                post("/create") {
                     val employeeRequest = call.attributes[AttributeKey<EmployeeRequest>("employeeRequest")]
                     employeeService.create(employeeRequest)
                     call.respond(HttpStatusCode.Created)
                 }
 
-                get("/employees") {
+                get {
                     call.respond(HttpStatusCode.OK, employeeService.findAll())
                 }
 
-                get("/employees/by-restaurant") {
+                get("/by-restaurant") {
                     val restaurantId = UUID.fromString(
                         call.parameters["restaurantId"] ?: throw IllegalArgumentException("Restaurant id is null")
                     )
                     call.respond(HttpStatusCode.OK, employeeService.findByRestaurant(restaurantId))
                 }
 
-                get("/employees/by-id") {
+                get("/by-id") {
                     val employeeId = UUID.fromString(
                         call.parameters["employeeId"] ?: throw IllegalArgumentException("Employee id is null")
                     )
                     call.respond(HttpStatusCode.OK, employeeService.findById(employeeId))
                 }
 
-                put("/employees/update") {
+                put("/update") {
                     val employeeRequest = call.attributes[AttributeKey<EmployeeRequest>("employeeRequest")]
                     if (employeeService.update(employeeRequest)) {
                         call.respond(HttpStatusCode.OK)
@@ -502,7 +502,7 @@ fun Application.configureEmployeeRouter() {
                     }
                 }
 
-                delete("/employees/delete") {
+                delete("/delete") {
                     val employeeId = UUID.fromString(
                         call.parameters["employeeId"] ?: throw IllegalArgumentException("Employee id is null")
                     )
@@ -513,7 +513,7 @@ fun Application.configureEmployeeRouter() {
                     }
                 }
 
-                put("/employees/add-servant") {
+                put("/add-servant") {
                     val directorId = UUID.fromString(
                         call.parameters["directorId"] ?: throw IllegalArgumentException("Director id is null")
                     )
@@ -524,7 +524,7 @@ fun Application.configureEmployeeRouter() {
                     call.respond(HttpStatusCode.OK)
                 }
 
-                delete("/employees/remove-servant") {
+                delete("/remove-servant") {
                     val directorId = UUID.fromString(
                         call.parameters["directorId"] ?: throw IllegalArgumentException("Director id is null")
                     )

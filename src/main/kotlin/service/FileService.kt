@@ -92,11 +92,11 @@ fun Application.configureFileRouter() {
 
     routing {
 
-        route("/api/v1") {
+        route("/api/v1/files") {
 
             authenticate("basic-auth-all") {
 
-                get("/files/by-id") {
+                get("/by-id") {
                     val fileId = UUID.fromString(call.parameters["fileId"] ?: throw IllegalArgumentException("File id not found"))
                     val file = fileService.findById(fileId)
                     call.respondBytes(
@@ -106,12 +106,12 @@ fun Application.configureFileRouter() {
                     )
                 }
 
-                post("/files/upload") {
+                post("/upload") {
                     fileService.upload(call.receiveMultipart())
                     call.respond(HttpStatusCode.OK)
                 }
 
-                delete("/files/remove") {
+                delete("/remove") {
                     val fileIds = call.parameters.getAll("fileId")
                         ?.map { UUID.fromString(it) } ?: throw IllegalArgumentException("File ids not found")
                     fileService.remove(fileIds)

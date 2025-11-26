@@ -357,3 +357,50 @@ Accept: application/json
 Origin: http://localhost:9000
 X-Csrf-Token: a6857592-af17-48cd-aece-fd1c43ea9bb3
 Authorization: Basic burgasvv@gmail.com burgasvv
+
+
+
+### Reservation Requests
+
+
+
+###
+POST /api/v1/reservations/create
+Host: localhost:9000
+Accept: application/json
+Content-Type: application/json
+Origin: http://localhost:9000
+X-Csrf-Token: 07ce681a-84ff-4af0-b7fb-023a58c090a5
+
+{
+    "locationRestaurantId": "8d0a5e94-03d1-4dd3-b0c1-979099d0f80f",
+    "locationAddressId": "5950e235-4690-4702-87da-6e4878c1ae43",
+    "name": "Rogov Aleksei Pavlovich",
+    "phone": "+79139056754",
+    "places": 5,
+    "startTime": "2025-11-27T18:30"
+}
+
+###
+GET /api/v1/reservations/by-client
+Host: localhost:9000
+Accept: application/json
+Content-Type: application/json
+
+{
+    "name": "Rogov Aleksei Pavlovich",
+    "phone": "+79139056754"
+}
+
+###
+PUT /api/v1/reservations/update
+Host: localhost:9000
+Accept: application/json
+Content-Type: application/json
+Origin: http://localhost:9000
+X-Csrf-Token: 9908d766-116a-49ec-9aae-3d7b1de4ac62
+
+{
+    "id": "240c0a70-2f09-47be-9a10-5670b2fe0dec",
+    "places": 10
+}

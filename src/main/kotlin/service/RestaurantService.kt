@@ -159,13 +159,13 @@ fun Application.configureRestaurantRouter() {
             }
         }
 
-        route("/api/v1") {
+        route("/api/v1/restaurants") {
 
-            get("/restaurants") {
+            get {
                 call.respond(HttpStatusCode.OK, restaurantService.findAll())
             }
 
-            get("/restaurants/by-id") {
+            get("/by-id") {
                 val restaurantId = UUID.fromString(
                     call.parameters["restaurantId"] ?: throw IllegalArgumentException("Restaurant  id is null")
                 )
@@ -174,13 +174,13 @@ fun Application.configureRestaurantRouter() {
 
             authenticate("basic-auth-all") {
 
-                post("/restaurants/create") {
+                post("/create") {
                     val restaurantRequest = call.receive(RestaurantRequest::class)
                     restaurantService.create(restaurantRequest)
                     call.respond(HttpStatusCode.Created)
                 }
 
-                put("/restaurant/update") {
+                put("/update") {
                     val restaurantRequest = call.receive(RestaurantRequest::class)
                     if (restaurantService.update(restaurantRequest)) {
                         call.respond(HttpStatusCode.OK)
@@ -189,7 +189,7 @@ fun Application.configureRestaurantRouter() {
                     }
                 }
 
-                delete("/restaurants/delete") {
+                delete("/delete") {
                     val restaurantId = UUID.fromString(
                         call.parameters["restaurantId"] ?: throw IllegalArgumentException("Restaurant  id is null")
                     )

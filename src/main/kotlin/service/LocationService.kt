@@ -35,14 +35,16 @@ data class LocationRequest(
     val restaurantId: UUID? = null,
     val address: AddressRequest? = null,
     val open: LocalTime? = null,
-    val close: LocalTime? = null
+    val close: LocalTime? = null,
+    val places: Int? = null
 )
 
 @Serializable
 data class LocationShortResponse(
     val address: AddressResponse? = null,
     val open: String? = null,
-    val close: String? = null
+    val close: String? = null,
+    val places: Int? = null
 )
 
 @Serializable
@@ -50,7 +52,8 @@ data class LocationFullResponse(
     val restaurant: RestaurantShortResponse? = null,
     val address: AddressResponse? = null,
     val open: String? = null,
-    val close: String? = null
+    val close: String? = null,
+    val places: Int? = null
 )
 
 fun ResultRow.toLocationShortResponse(): LocationShortResponse {
@@ -60,7 +63,8 @@ fun ResultRow.toLocationShortResponse(): LocationShortResponse {
     return LocationShortResponse(
         address = address,
         open = this[Location.open]?.format(DateTimeFormatter.ofPattern("hh:mm")),
-        close = this[Location.close]?.format(DateTimeFormatter.ofPattern("hh:mm"))
+        close = this[Location.close]?.format(DateTimeFormatter.ofPattern("hh:mm")),
+        places = this[Location.places]
     )
 }
 
@@ -75,7 +79,8 @@ fun ResultRow.toLocationFullResponse(): LocationFullResponse {
         restaurant = restaurantShortResponse,
         address = address,
         open = this[Location.open]?.format(DateTimeFormatter.ofPattern("hh:mm")),
-        close = this[Location.close]?.format(DateTimeFormatter.ofPattern("hh:mm"))
+        close = this[Location.close]?.format(DateTimeFormatter.ofPattern("hh:mm")),
+        places = this[Location.places]
     )
 }
 
@@ -85,6 +90,7 @@ fun InsertStatement<Number>.toLocation(locationRequest: LocationRequest, address
     this[Location.addressId] = addressId
     this[Location.open] = (locationRequest.open ?: throw IllegalArgumentException("Open is null")).toJavaLocalTime()
     this[Location.close] = (locationRequest.close ?: throw IllegalArgumentException("Close is null")).toJavaLocalTime()
+    this[Location.places] = locationRequest.places ?: throw IllegalArgumentException("Places field is null")
 }
 
 fun UpdateStatement.toLocation(locationRequest: LocationRequest, location: ResultRow, newAddressId: UUID?) {
@@ -92,6 +98,7 @@ fun UpdateStatement.toLocation(locationRequest: LocationRequest, location: Resul
     this[Location.addressId] = newAddressId ?: location[Location.addressId]
     this[Location.open] = location[Location.open]
     this[Location.close] = location[Location.close]
+    this[Location.places] = locationRequest.places ?: location[Location.places]
 }
 
 class LocationService {
@@ -214,13 +221,13 @@ fun Application.configureLocationRouter() {
             }
         }
 
-        route("/api/v1") {
+        route("/api/v1/locations") {
 
-            get("/locations") {
+            get {
                 call.respond(HttpStatusCode.OK, locationService.findAll())
             }
 
-            get("/locations/by-id") {
+            get("/by-id") {
                 val restaurantId = UUID.fromString(
                     call.parameters["restaurantId"] ?: throw IllegalArgumentException("Restaurant id is null")
                 )
@@ -232,13 +239,13 @@ fun Application.configureLocationRouter() {
 
             authenticate("basic-auth-all") {
 
-                post("/locations/create") {
+                post("/create") {
                     val locationRequest = call.attributes[AttributeKey<LocationRequest>("locationRequest")]
                     locationService.create(locationRequest)
                     call.respond(HttpStatusCode.Created)
                 }
 
-                put("/locations/update") {
+                put("/update") {
                     val restaurantId = UUID.fromString(
                         call.parameters["restaurantId"] ?: throw IllegalArgumentException("Restaurant id is null")
                     )
@@ -253,7 +260,7 @@ fun Application.configureLocationRouter() {
                     }
                 }
 
-                delete("/locations/delete") {
+                delete("/delete") {
                     val restaurantId = UUID.fromString(
                         call.parameters["restaurantId"] ?: throw IllegalArgumentException("Restaurant id is null")
                     )

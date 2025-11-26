@@ -3,9 +3,9 @@ package org.burgas.plugin
 import io.ktor.server.application.*
 import org.burgas.service.Authority
 import org.burgas.service.Position
-import org.jetbrains.exposed.v1.core.Column
 import org.jetbrains.exposed.v1.core.ReferenceOption
 import org.jetbrains.exposed.v1.core.Table
+import org.jetbrains.exposed.v1.core.greaterEq
 import org.jetbrains.exposed.v1.javatime.date
 import org.jetbrains.exposed.v1.javatime.datetime
 import org.jetbrains.exposed.v1.javatime.time
@@ -14,14 +14,12 @@ import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.time.LocalDateTime
-import java.util.UUID
 
 object File : Table("file") {
     val id = uuid("id").autoGenerate()
     val name = varchar("name", 255)
     val contentType = varchar("content_type", 255)
     val data = binary("data")
-
     val createdAt = timestamp("created_at")
     val updatedAt = timestamp("updated_at")
 
@@ -36,7 +34,6 @@ object Identity : Table("identity") {
     val password = varchar("password", 255)
     val email = varchar("email", 255).uniqueIndex()
     val isActive = bool("is_active")
-
     val createdAt = datetime("created_at").default(LocalDateTime.now())
     val updatedAt = datetime("updated_at")
 
@@ -51,6 +48,7 @@ object IdentityFile : Table("identity_file") {
     val fileId = uuid("file_id")
         .references(File.id, ReferenceOption.CASCADE, ReferenceOption.CASCADE)
         .nullable()
+
     override val primaryKey: PrimaryKey
         get() = PrimaryKey(arrayOf(identityId, fileId))
 }
@@ -61,6 +59,7 @@ object Address : Table("address") {
     val street = varchar("street", 255)
     val house = varchar("house", 255)
     val apartment = varchar("apartment", 255).nullable()
+
     override val primaryKey: PrimaryKey
         get() = PrimaryKey(id)
 }
@@ -69,6 +68,7 @@ object Restaurant : Table("restaurant") {
     val id  = uuid("id").autoGenerate()
     val name = varchar("name", 255).uniqueIndex()
     val description = text("description").uniqueIndex()
+
     override val primaryKey: PrimaryKey
         get() = PrimaryKey(id)
 }
@@ -80,6 +80,8 @@ object Location : Table("location") {
         .references(Address.id, ReferenceOption.CASCADE, ReferenceOption.CASCADE)
     val open = time("open").nullable()
     val close = time("close").nullable()
+    val places = integer("places").default(0).check { column -> column.greaterEq(0) }
+
     override val primaryKey: PrimaryKey
         get() = PrimaryKey(arrayOf(restaurantId, addressId))
 }
@@ -99,9 +101,11 @@ object Employee : Table("employee") {
     val birthday = date("birthday")
     val employeeAddressId = uuid("employee_address_id")
         .references(Address.id, ReferenceOption.SET_NULL, ReferenceOption.CASCADE)
+
     init {
         foreignKey(locationRestaurantId, locationAddressId, target = Location.primaryKey)
     }
+
     override val primaryKey: PrimaryKey
         get() = PrimaryKey(id)
 }
@@ -111,8 +115,28 @@ object DirectorServant : Table("director_servant") {
         .references(Employee.id, ReferenceOption.CASCADE, ReferenceOption.CASCADE)
     val servantId = uuid("servant_id")
         .references(Employee.id, ReferenceOption.CASCADE, ReferenceOption.CASCADE)
+
     override val primaryKey: PrimaryKey
         get() = PrimaryKey(arrayOf(directorId, servantId))
+}
+
+object Reservation : Table("reservation") {
+    val id = uuid("id").autoGenerate()
+    val locationRestaurantId = uuid("location_restaurant_id")
+    val locationAddressId = uuid("location_address_id")
+    val name = varchar("name", 255)
+    val phone = varchar("phone", 255)
+    val places = integer("places").default(0).check { column -> column.greaterEq(0) }
+    val startTime = datetime("start_time")
+    val endTime = datetime("end_time").nullable()
+    val isFinished = bool("is_finished")
+
+    init {
+        foreignKey(locationRestaurantId, locationAddressId, target = Location.primaryKey)
+    }
+
+    override val primaryKey: PrimaryKey
+        get() = PrimaryKey(id)
 }
 
 fun Application.configureDatabases() {
@@ -124,6 +148,9 @@ fun Application.configureDatabases() {
     )
 
     transaction(db = database) {
-        SchemaUtils.create(File, Identity, IdentityFile, Address, Restaurant, Location, Employee, DirectorServant)
+        SchemaUtils.create(
+            File, Identity, IdentityFile, Address,
+            Restaurant, Location, Employee, DirectorServant, Reservation
+        )
     }
 }
