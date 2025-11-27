@@ -16,6 +16,7 @@ import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.leftJoin
+import org.jetbrains.exposed.v1.core.neq
 import org.jetbrains.exposed.v1.core.statements.InsertStatement
 import org.jetbrains.exposed.v1.core.statements.UpdateStatement
 import org.jetbrains.exposed.v1.javatime.date
@@ -139,10 +140,11 @@ class ReservationService {
                     (Location.addressId eq locationAddressId)
 
             val restaurantDateReservations = Reservation.selectAll()
-                .where { (Reservation.startTime.date() eq startDate) and
-                        (Reservation.locationRestaurantId eq locationRestaurantId) and
-                        (Reservation.locationAddressId eq locationAddressId) and
-                        (Reservation.isFinished eq false)
+                .where {
+                    (Reservation.startTime.date() eq startDate) and
+                            (Reservation.locationRestaurantId eq locationRestaurantId) and
+                            (Reservation.locationAddressId eq locationAddressId) and
+                            (Reservation.isFinished eq false) and (Reservation.isStarted eq false)
                 }
                 .toList()
 
@@ -224,10 +226,13 @@ class ReservationService {
                 else reservation[Reservation.startTime].toLocalDate()
 
             val restaurantDateReservations = Reservation.selectAll()
-                .where { (Reservation.startTime.date() eq startDate) and
-                        (Reservation.locationRestaurantId eq locationRestaurantId) and
-                        (Reservation.locationAddressId eq locationAddressId) and
-                        (Reservation.isFinished eq false)
+                .where {
+                    (Reservation.startTime.date() eq startDate) and
+                            (Reservation.locationRestaurantId eq locationRestaurantId) and
+                            (Reservation.locationAddressId eq locationAddressId) and
+                            (Reservation.isFinished eq false) and
+                            (Reservation.isStarted eq false) and
+                            (Reservation.id neq reservation[Reservation.id])
                 }
                 .toList()
 

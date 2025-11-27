@@ -120,9 +120,8 @@ class IdentityService {
     suspend fun findAll() = withContext(Dispatchers.Default) {
         transaction(readOnly = true) {
             Identity.select(Identity.id, Identity.username, Identity.email)
-                .map { resultRow ->
-                    resultRow.toIdentityShortResponse()
-                }
+                .map { resultRow -> resultRow.toIdentityShortResponse() }
+                .toHashSet()
         }
     }
 

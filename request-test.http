@@ -370,15 +370,15 @@ Host: localhost:9000
 Accept: application/json
 Content-Type: application/json
 Origin: http://localhost:9000
-X-Csrf-Token: 07ce681a-84ff-4af0-b7fb-023a58c090a5
+X-Csrf-Token: 5b080341-0383-4d3f-9297-c0639bca8a2a
 
 {
     "locationRestaurantId": "8d0a5e94-03d1-4dd3-b0c1-979099d0f80f",
     "locationAddressId": "5950e235-4690-4702-87da-6e4878c1ae43",
     "name": "Rogov Aleksei Pavlovich",
     "phone": "+79139056754",
-    "places": 5,
-    "startTime": "2025-11-27T18:30"
+    "places": 10,
+    "startTime": "2025-11-28T18:30"
 }
 
 ###
@@ -415,9 +415,9 @@ Host: localhost:9000
 Accept: application/json
 Content-Type: application/json
 Origin: http://localhost:9000
-X-Csrf-Token: 98ce5e83-d85d-43d3-8fc3-303895ccdebb
+X-Csrf-Token: 0b7f8cd6-80cd-4ac2-9fb3-90fa5a4add29
 
 {
-    "id": "2dffe146-7049-4164-b515-bce746d892ad",
-    "places": 35
+    "id": "57f05588-a845-4e46-bdca-7891abfeb9a6",
+    "places": 25
 }
