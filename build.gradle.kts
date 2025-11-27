@@ -39,6 +39,9 @@ dependencies {
     implementation("io.ktor:ktor-server-cors:3.3.2")
     implementation("io.ktor:ktor-server-csrf:3.3.2")
     implementation("io.ktor:ktor-server-sessions:3.3.2")
+    implementation("com.ucasoft.ktor:ktor-simple-cache:0.55.3")
+    implementation("com.ucasoft.ktor:ktor-simple-redis-cache:0.55.3")
+    implementation("com.ucasoft.ktor:ktor-simple-cache:0.55.3")
     testImplementation("io.ktor:ktor-server-test-host")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlinVersion")
 }

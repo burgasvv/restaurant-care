@@ -13,11 +13,11 @@ import java.util.*
 
 fun Application.configureRouting() {
 
-//    install(StatusPages) {
-//        exception<Throwable> { call, cause ->
-//            call.respond(HttpStatusCode.BadRequest, cause.localizedMessage)
-//        }
-//    }
+    install(StatusPages) {
+        exception<Throwable> { call, cause ->
+            call.respond(HttpStatusCode.BadRequest, cause.localizedMessage)
+        }
+    }
 
     install(CORS) {
         allowCredentials = true

@@ -20,9 +20,10 @@ fun main(args: Array<String>) {
 
 fun Application.module() {
     configureSerialization()
-    configureDatabases()
+    configurePostgres()
     configureRouting()
     configureAuthentication()
+    configureRedis()
 
     configureFileRouter()
     configureIdentityRouter()
@@ -37,21 +38,14 @@ fun Application.module() {
 
             transaction(transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
                 val reservations = Reservation.selectAll()
-                    .where { (Reservation.isFinished eq false) and (Reservation.startTime.less(LocalDateTime.now().minusMinutes(10))) }
+                    .where {
+                        (Reservation.isFinished eq false) and (Reservation.isStarted eq false) and
+                                (Reservation.startTime.less(LocalDateTime.now().minusMinutes(10)))
+                    }
                     .toList()
-
                 if (!reservations.isEmpty()) {
                     reservations.forEach { reservation ->
-                        val operation = (Location.restaurantId eq reservation[Reservation.locationRestaurantId]) and
-                                (Location.addressId eq reservation[Reservation.locationAddressId])
-
-                        val location = Location.selectAll().where { operation }.single()
-
-                        Location.update({operation}) { updateStatement ->
-                            updateStatement[Location.places] = location[Location.places] + reservation[Reservation.places]
-                        }
-
-                        Reservation.update({ Reservation.id eq reservation[Reservation.id]}) { updateStatement ->
+                        Reservation.update({ Reservation.id eq reservation[Reservation.id] }) { updateStatement ->
                             updateStatement[Reservation.isFinished] = true
                         }
                     }

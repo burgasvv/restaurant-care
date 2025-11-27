@@ -58,6 +58,7 @@ data class ReservationResponse(
     val places: Int? = null,
     val startTime: String? = null,
     val endTime: String? = null,
+    val isStarted: Boolean? = null,
     val isFinished: Boolean? = null
 )
 
@@ -81,6 +82,7 @@ fun ResultRow.toReservationResponse(): ReservationResponse {
         startTime = this[Reservation.startTime].format(DateTimeFormatter.ofPattern("dd MMMM yyyy, hh:mm")),
         endTime = if (this[Reservation.endTime] == null) null else this[Reservation.endTime]
             ?.format(DateTimeFormatter.ofPattern("dd MMMM yyyy, hh:mm")),
+        isStarted = this[Reservation.isStarted],
         isFinished = this[Reservation.isFinished]
     )
 }
@@ -96,6 +98,7 @@ fun InsertStatement<Number>.toReservation(reservationRequest: ReservationRequest
     this[Reservation.startTime] =
         (reservationRequest.startTime ?: throw IllegalArgumentException("Start time is null")).toJavaLocalDateTime()
     this[Reservation.endTime] = null
+    this[Reservation.isStarted] = false
     this[Reservation.isFinished] = false
 }
 
@@ -111,6 +114,7 @@ fun UpdateStatement.toReservation(reservationRequest: ReservationRequest, reserv
     this[Reservation.startTime] = if (reservationRequest.startTime == null)
         reservation[Reservation.startTime] else reservationRequest.startTime.toJavaLocalDateTime()
     this[Reservation.endTime] = reservation[Reservation.endTime]
+    this[Reservation.isStarted] = reservation[Reservation.isStarted]
     this[Reservation.isFinished] = reservation[Reservation.isFinished]
 }
 
@@ -151,17 +155,24 @@ class ReservationService {
             val location = Location.selectAll().where { operation }
                 .singleOrNull() ?: throw IllegalArgumentException("Location not found")
 
-            if (location[Location.places] < places) {
-                throw IllegalArgumentException("Location restaurant capacity not enough for reservation")
-            }
+            val localTime = startLocalDateTime.toJavaLocalDateTime().toLocalTime()
+            if (localTime.isAfter(location[Location.open]) && localTime.isBefore(location[Location.close])) {
 
-            val freePlaces = location[Location.places] - dateReservedPlaces
+                if (location[Location.places] < places) {
+                    throw IllegalArgumentException("Location restaurant capacity not enough for reservation")
+                }
 
-            if (freePlaces >= places) {
-                Reservation.insert { insertStatement -> insertStatement.toReservation(reservationRequest) }
+                val freePlaces = location[Location.places] - dateReservedPlaces
+
+                if (freePlaces >= places) {
+                    Reservation.insert { insertStatement -> insertStatement.toReservation(reservationRequest) }
+
+                } else {
+                    throw IllegalArgumentException("Location restaurant places not enough for reservation")
+                }
 
             } else {
-                throw IllegalArgumentException("Location restaurant places not enough for reservation")
+                throw IllegalArgumentException("Reservation in wrong restaurant location work time")
             }
         }
     }
@@ -186,7 +197,7 @@ class ReservationService {
                 .selectAll()
                 .where { (Reservation.name eq reservationSearch.name) and (Reservation.phone eq reservationSearch.phone) }
                 .map { resultRow -> resultRow.toReservationResponse() }
-                .singleOrNull() ?: throw IllegalArgumentException("Reservation not found")
+                .toList()
         }
     }
 
@@ -208,12 +219,12 @@ class ReservationService {
                 (Location.restaurantId eq locationRestaurantId) and (Location.addressId eq locationAddressId)
 
             val startLocalDateTime = reservationRequest.startTime
-            val startTime =
+            val startDate =
                 if (startLocalDateTime != null) startLocalDateTime.toJavaLocalDateTime().toLocalDate()
                 else reservation[Reservation.startTime].toLocalDate()
 
             val restaurantDateReservations = Reservation.selectAll()
-                .where { (Reservation.startTime.date() eq startTime) and
+                .where { (Reservation.startTime.date() eq startDate) and
                         (Reservation.locationRestaurantId eq locationRestaurantId) and
                         (Reservation.locationAddressId eq locationAddressId) and
                         (Reservation.isFinished eq false)
@@ -229,25 +240,43 @@ class ReservationService {
             val location = Location.selectAll().where { operation }
                 .singleOrNull() ?: throw IllegalArgumentException("Location not found")
 
-            if (location[Location.places] < places) {
-                throw IllegalArgumentException("Location restaurant capacity not enough for reservation")
-            }
+            val startTime =
+                if (startLocalDateTime != null) startLocalDateTime.toJavaLocalDateTime().toLocalTime()
+                else reservation[Reservation.startTime].toLocalTime()
 
-            val freePlaces = location[Location.places] - dateReservedPlaces
+            if (startTime.isAfter(location[Location.open]) && startTime.isBefore(location[Location.close])) {
 
-            if (freePlaces >= places) {
-                Reservation.update({ Reservation.id eq reservation[Reservation.id] }) { updateStatement ->
-                    updateStatement.toReservation(reservationRequest, reservation)
-                } > 0
+                if (location[Location.places] < places) {
+                    throw IllegalArgumentException("Location restaurant capacity not enough for reservation")
+                }
+
+                val freePlaces = location[Location.places] - dateReservedPlaces
+
+                if (freePlaces >= places) {
+                    Reservation.update({ Reservation.id eq reservation[Reservation.id] }) { updateStatement ->
+                        updateStatement.toReservation(reservationRequest, reservation)
+                    } > 0
+
+                } else {
+                    throw IllegalArgumentException("Location restaurant places not enough for reservation")
+                }
+
             } else {
-                throw IllegalArgumentException("Location restaurant places not enough for reservation")
+                throw IllegalArgumentException("Reservation in wrong restaurant location work time")
             }
+        }
+    }
+
+    suspend fun start(reservationId: UUID) = withContext(Dispatchers.Default) {
+        transaction(transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
+            Reservation.update({ Reservation.id eq reservationId }) { updateStatement ->
+                updateStatement[Reservation.isStarted] = true
+            } > 0
         }
     }
 
     suspend fun finish(reservationId: UUID) = withContext(Dispatchers.Default) {
         transaction(transactionIsolation = Connection.TRANSACTION_READ_COMMITTED) {
-
             Reservation.update({ Reservation.id eq reservationId }) { updateStatement ->
                 updateStatement[Reservation.endTime] = java.time.LocalDateTime.now()
                 updateStatement[Reservation.isFinished] = true
@@ -264,12 +293,15 @@ fun Application.configureReservationRouter() {
 
         @Suppress("DEPRECATION")
         intercept(ApplicationCallPipeline.Call) {
+
             if (call.request.path().equals("/api/v1/reservations/finish", false)) {
+
                 val principal =
                     call.principal<UserPasswordCredential>() ?: throw IllegalArgumentException("Not authenticated")
                 val reservationId = UUID.fromString(
                     call.parameters["reservationId"] ?: throw IllegalArgumentException("Reservation id is null")
                 )
+
                 val reservation = Reservation
                     .leftJoin(Employee, { Reservation.locationRestaurantId }, { Employee.locationRestaurantId })
                     .leftJoin(Identity, { Employee.identityId }, { Identity.id })
@@ -317,6 +349,17 @@ fun Application.configureReservationRouter() {
             }
 
             authenticate("basic-auth-all") {
+
+                put("/start") {
+                    val reservationId = UUID.fromString(
+                        call.parameters["reservationId"] ?: throw IllegalArgumentException("ReservationId is null")
+                    )
+                    if (reservationService.start(reservationId)) {
+                        call.respond(HttpStatusCode.OK)
+                    } else {
+                        call.respond(HttpStatusCode.NotFound)
+                    }
+                }
 
                 put("/finish") {
                     val reservationId = UUID.fromString(

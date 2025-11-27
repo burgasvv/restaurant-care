@@ -129,7 +129,8 @@ object Reservation : Table("reservation") {
     val places = integer("places").default(0).check { column -> column.greaterEq(0) }
     val startTime = datetime("start_time")
     val endTime = datetime("end_time").nullable()
-    val isFinished = bool("is_finished")
+    val isStarted = bool("is_started").default(false)
+    val isFinished = bool("is_finished").default(false)
 
     init {
         foreignKey(locationRestaurantId, locationAddressId, target = Location.primaryKey)
@@ -139,7 +140,7 @@ object Reservation : Table("reservation") {
         get() = PrimaryKey(id)
 }
 
-fun Application.configureDatabases() {
+fun Application.configurePostgres() {
     val database = Database.connect(
         driver = environment.config.property("ktor.postgres.driver").getString(),
         url = environment.config.property("ktor.postgres.url").getString(),

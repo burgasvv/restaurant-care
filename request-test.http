@@ -382,6 +382,23 @@ X-Csrf-Token: 07ce681a-84ff-4af0-b7fb-023a58c090a5
 }
 
 ###
+POST /api/v1/reservations/create
+Host: localhost:9000
+Accept: application/json
+Content-Type: application/json
+Origin: http://localhost:9000
+X-Csrf-Token: a64f1c81-dfc5-4e0d-8b0e-9ca72fe0d2a8
+
+{
+    "locationRestaurantId": "8d0a5e94-03d1-4dd3-b0c1-979099d0f80f",
+    "locationAddressId": "5950e235-4690-4702-87da-6e4878c1ae43",
+    "name": "Treev Alexander Dmitrievich",
+    "phone": "+79324568943",
+    "places": 25,
+    "startTime": "2025-11-28T15:30"
+}
+
+###
 GET /api/v1/reservations/by-client
 Host: localhost:9000
 Accept: application/json
@@ -398,9 +415,9 @@ Host: localhost:9000
 Accept: application/json
 Content-Type: application/json
 Origin: http://localhost:9000
-X-Csrf-Token: 9908d766-116a-49ec-9aae-3d7b1de4ac62
+X-Csrf-Token: 98ce5e83-d85d-43d3-8fc3-303895ccdebb
 
 {
-    "id": "240c0a70-2f09-47be-9a10-5670b2fe0dec",
-    "places": 10
+    "id": "2dffe146-7049-4164-b515-bce746d892ad",
+    "places": 35
 }
