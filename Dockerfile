@@ -1,11 +1,11 @@
 
 FROM bellsoft/liberica-openjdk-alpine:24
-COPY gradle gradle
 COPY build.gradle.kts .
 COPY settings.gradle.kts .
 COPY gradle.properties .
 COPY gradlew.bat .
 COPY gradlew .
+COPY gradle gradle
 COPY src src
 RUN ./gradlew clean build -x test
 
