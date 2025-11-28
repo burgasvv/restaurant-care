@@ -117,6 +117,26 @@ class IdentityService {
         }
     }
 
+    suspend fun findByPage(page: Int, size: Int) = withContext(Dispatchers.Default) {
+        transaction(readOnly = true) {
+            if (size <= 0) {
+                throw IllegalArgumentException("Size is equals or below zero")
+            }
+            val offset: Int = if (page > 1) {
+                (page - 1) * size
+            } else if (page <= 0) {
+                throw IllegalArgumentException("Page is less or equals zero")
+            }  else {
+                0
+            }
+            Identity.select(Identity.id, Identity.username, Identity.email)
+                .drop(offset)
+                .take(size)
+                .map { resultRow -> resultRow.toIdentityShortResponse() }
+                .toList()
+        }
+    }
+
     suspend fun findAll() = withContext(Dispatchers.Default) {
         transaction(readOnly = true) {
             Identity.select(Identity.id, Identity.username, Identity.email)
@@ -237,7 +257,8 @@ fun Application.configureIdentityRouter() {
                     val identity = Identity.select(Identity.id).where { Identity.email eq principal.name }
                         .singleOrNull() ?: throw IllegalArgumentException("Identity credential not found")
                     val identityId = UUID.fromString(
-                        call.parameters["identityId"] ?: throw IllegalArgumentException("Identity id parameter not found")
+                        call.parameters["identityId"]
+                            ?: throw IllegalArgumentException("Identity id parameter not found")
                     )
                     if (identity[Identity.id] == identityId) {
                         proceed()
@@ -281,6 +302,12 @@ fun Application.configureIdentityRouter() {
 
                 get {
                     call.respond(HttpStatusCode.OK, identityService.findAll())
+                }
+
+                get("/by-page") {
+                    val page = (call.parameters["page"] ?: throw IllegalArgumentException("Page parameter is null")).toInt()
+                    val size = (call.parameters["size"] ?: throw IllegalArgumentException("Size parameter is null")).toInt()
+                    call.respond(HttpStatusCode.OK, identityService.findByPage(page, size))
                 }
 
                 put("/activate") {

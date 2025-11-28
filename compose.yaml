@@ -14,5 +14,19 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  restaurant-care:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    ports:
+      - "9000:9000"
+    environment:
+      KTOR_POSTGRES_URL: jdbc:postgresql://postgres:5432/restaurant_care_db
+      KTOR_POSTGRES_USER: postgres
+      KTOR_POSTGRES_PASSWORD: postgres
+
 volumes:
   postgres_data:

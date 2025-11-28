@@ -63,6 +63,12 @@ Accept: application/json
 Authorization: Basic burgasvv@gmail.com burgasvv
 
 ###
+GET /api/v1/identities/by-page?page=1&size=2
+Host: localhost:9000
+Accept: application/json
+Authorization: Basic burgasvv@gmail.com burgasvv
+
+###
 GET /api/v1/identities/by-id?identityId=5d755809-d1df-4506-887c-90bb0425b612
 Host: localhost:9000
 Accept: application/json

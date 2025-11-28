@@ -11,6 +11,11 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization") version "2.2.20"
 }
 
+java {
+    sourceCompatibility = JavaVersion.VERSION_24
+    targetCompatibility = JavaVersion.VERSION_24
+}
+
 group = "org.burgas"
 version = "0.0.1"
 
@@ -42,6 +47,8 @@ dependencies {
     implementation("com.ucasoft.ktor:ktor-simple-cache:0.55.3")
     implementation("com.ucasoft.ktor:ktor-simple-redis-cache:0.55.3")
     implementation("com.ucasoft.ktor:ktor-simple-cache:0.55.3")
+    implementation("redis.clients:jedis:7.1.0")
+    implementation("io.ktor:ktor-client-apache:3.3.2")
     testImplementation("io.ktor:ktor-server-test-host")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlinVersion")
 }

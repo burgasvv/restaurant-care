@@ -7,6 +7,6 @@ ktor:
     port: 9000
   postgres:
     driver: org.postgresql.Driver
-    url: jdbc:postgresql://localhost:5432/restaurant_care_db
+    url: jdbc:postgresql://postgres:5432/restaurant_care_db
     user: postgres
     password: postgres
